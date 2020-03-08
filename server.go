@@ -10,17 +10,15 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path"
 	"sync"
 	"time"
 
-	_ "net/http/pprof"
-
-	"github.com/pkg/profile"
+	"gopkg.in/ini.v1"
 )
 
 const (
 	cacheurl = "https://rpki.cloudflare.com/rpki.json"
-	logfile  = "/var/log/rpkirtr.log"
 
 	// Each region will just be an enum.
 	afrinic rir = 0
@@ -31,10 +29,6 @@ const (
 
 	// refreshROA is the amount of seconds to wait until a new json is pulled.
 	refreshROA = 15 * time.Minute
-
-	// 8282 is the RFC port for RPKI-RTR
-	port = 8282
-	loc  = "localhost"
 
 	// Intervals are the default intervals in seconds if no specific value is configured
 	refresh = uint32(3600) // 1 - 86400
@@ -105,7 +99,6 @@ type serialDiff struct {
 }
 
 func main() {
-	defer profile.Start(profile.MemProfile).Stop()
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
@@ -114,8 +107,24 @@ func main() {
 
 // run will do the initial set up. Returns error to main.
 func run() error {
-	// set up log file
-	f, err := os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// load in config
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	path := fmt.Sprintf("%s/config.ini", path.Dir(exe))
+	cf, err := ini.Load(path)
+	if err != nil {
+		log.Fatalf("failed to read config file: %v\n", err)
+	}
+	logf := cf.Section("rpkirtr").Key("log").String()
+	port, err := cf.Section("rpkirtr").Key("port").Int64()
+	if err != nil {
+		return fmt.Errorf("Port set needs to be a number: %v", err)
+	}
+
+	// set up logging
+	f, err := os.OpenFile(logf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open logfile: %w", err)
 	}
@@ -139,16 +148,13 @@ func run() error {
 		roas:    roas,
 	}
 	rpki.mutex = &sync.RWMutex{}
-	rpki.listen()
+	rpki.listen(port)
 
 	// ROAs should be updated at every refresh interval
 	go rpki.updateROAs(cacheurl)
 
 	// Show me the status of the server. Mostly for debugging
 	go rpki.status()
-
-	// profiling
-	go newMonitor(300)
 
 	// I'm listening!
 	defer rpki.close()
@@ -159,7 +165,7 @@ func run() error {
 }
 
 // Start listening
-func (s *CacheServer) listen() {
+func (s *CacheServer) listen(port int64) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("Unable to start server: %v", err)
@@ -170,6 +176,7 @@ func (s *CacheServer) listen() {
 }
 
 // Status is just temporary. I may allow this info to be gathered via RPC or something
+// TODO: Do something with this or delete.
 func (s *CacheServer) status() {
 	for {
 		s.mutex.RLock()
