@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 type monitor struct {
@@ -172,22 +171,6 @@ func readROAs(url string) ([]roa, error) {
 
 	return roas, nil
 
-}
-
-func sizeROA(r []roa) int {
-	size := 0
-	r = r[:cap(r)]
-	size += cap(r) * int(unsafe.Sizeof(r))
-	for i := range r {
-		size += (&r[i]).size()
-	}
-	return size
-}
-
-func (r *roa) size() int {
-	size := int(unsafe.Sizeof(*r))
-	size += len(r.Prefix)
-	return size
 }
 
 // https://scene-si.org/2018/08/06/basic-monitoring-of-go-apps-with-the-runtime-package/

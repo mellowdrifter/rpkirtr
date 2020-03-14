@@ -191,12 +191,13 @@ func (s *CacheServer) status() {
 		}
 		log.Println("*** Status ***")
 		log.Printf("I currently have %d clients connected\n", len(s.clients))
-		log.Printf("Current ROA count is %d\n", len(s.roas))
+		for i, v := range s.clients {
+			log.Printf("%d: %s\v", i+1, v.addr)
+		}
 		log.Printf("Current serial number is %d\n", s.serial)
 		log.Printf("Last diff is %t\n", s.diff.diff)
 		log.Printf("Current size of diff is %d\n", len(s.diff.addRoa)+len(s.diff.delRoa))
-		log.Printf("There are %d ROAs, roughly size %d bytes, which is an average of %d bytes per ROA\n",
-			len(s.roas), sizeROA(s.roas), sizeROA(s.roas)/len(s.roas))
+		log.Printf("There are %d ROAs\n", len(s.roas))
 		log.Printf("There are %d IPv4 ROAs and %d IPv6 ROAs\n", v4, v6)
 		log.Printf("len=%d cap=%d\n", len(s.roas), cap(s.roas))
 		log.Println("*** eom ***")
