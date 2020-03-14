@@ -1,5 +1,10 @@
 version = 1
 
+test_patterns = [
+  "**/*_test.go"
+]
+
+
 [[analyzers]]
 name = "go"
 enabled = true
@@ -7,3 +12,7 @@ runtime_version = "3.x.x"
 
 [analyzers.meta]
 import_path = "github.com/mellowdrifter/rpkirtr"
+
+[[analyzers]]
+name = "test-coverage"
+enabled = true
