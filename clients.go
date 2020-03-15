@@ -138,11 +138,12 @@ func (c *client) error(code int, report string) {
 }
 
 // Handle each client.
-func (c *client) handleClient() {
+func (s *CacheServer) handleClient(c *client) {
 	log.Printf("Serving %s\n", c.conn.RemoteAddr().String())
+	// Remove client when exiting
+	defer s.remove(c)
 
 	for {
-
 		// What is the incoming PDU?
 		var header headerPDU
 		binary.Read(c.conn, binary.BigEndian, &header)
@@ -152,6 +153,12 @@ func (c *client) handleClient() {
 		}
 
 		switch {
+		// If header is all zeros, the connection is terminated
+		case header.Version == 0 && header.Ptype == 0:
+			log.Printf("Client at %s is leaving\n", c.conn.RemoteAddr())
+			c.conn.Close()
+			return
+
 		// I only support version 1 for now.
 		case header.Version != 1:
 			log.Printf("Received something I don't know :'(  %+v\n", header)

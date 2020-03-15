@@ -220,7 +220,7 @@ func (s *CacheServer) start() {
 			log.Printf("%v\n", err)
 		} else {
 			client := s.accept(conn)
-			go client.handleClient()
+			go s.handleClient(client)
 		}
 	}
 }
@@ -232,16 +232,6 @@ func (s *CacheServer) accept(conn net.Conn) *client {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-
-	// If existing client, close the old connection if it's still persistant.
-	for _, client := range s.clients {
-		ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-		if client.addr == ip {
-			log.Printf("Already have a connection from %s, so attemping to close existing one\n", client.addr)
-			s.remove(client)
-			break
-		}
-	}
 
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 
@@ -264,6 +254,8 @@ func (s *CacheServer) accept(conn net.Conn) *client {
 
 // remove removes a client from the current list of clients being served.
 func (s *CacheServer) remove(c *client) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	log.Printf("Removing client %s\n", c.conn.RemoteAddr().String())
 
 	// remove the connection from client array
@@ -272,11 +264,6 @@ func (s *CacheServer) remove(c *client) {
 			s.clients = append(s.clients[:i], s.clients[i+1:]...)
 		}
 	}
-	err := c.conn.Close()
-	if err != nil {
-		log.Printf("*** Error closing connection! %v\n", err)
-	}
-
 }
 
 // updateROAs will update the server struct with the current list of ROAs
