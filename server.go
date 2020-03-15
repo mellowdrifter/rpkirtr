@@ -176,7 +176,6 @@ func (s *CacheServer) listen(port int64) {
 }
 
 // Status is just temporary. I may allow this info to be gathered via RPC or something
-// TODO: Do something with this or delete.
 func (s *CacheServer) status() {
 	for {
 		s.mutex.RLock()
@@ -192,7 +191,7 @@ func (s *CacheServer) status() {
 		log.Println("*** Status ***")
 		log.Printf("I currently have %d clients connected\n", len(s.clients))
 		for i, v := range s.clients {
-			log.Printf("%d: %s\v", i+1, v.addr)
+			log.Printf("%d: %s\n", i+1, v.addr)
 		}
 		log.Printf("Current serial number is %d\n", s.serial)
 		log.Printf("Last diff is %t\n", s.diff.diff)
@@ -246,8 +245,6 @@ func (s *CacheServer) accept(conn net.Conn) *client {
 	}
 
 	s.clients = append(s.clients, client)
-
-	log.Printf("New client added to list: %#v\n", s.clients)
 
 	return client
 }

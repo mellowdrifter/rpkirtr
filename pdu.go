@@ -401,7 +401,6 @@ func (p *errorReportPDU) serialize(wr io.Writer) {
 	log.Printf("Sending an error report PDU: %v\n", *p)
 	// length of encapped PDU 0 for now
 	// not encapping PDU, so empty field there
-	// TODO: Make this better of course
 	reportLength := len([]byte(p.report))
 	totalLength := 128 + reportLength
 
