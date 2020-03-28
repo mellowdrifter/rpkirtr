@@ -85,6 +85,14 @@ type CacheServer struct {
 	serial   uint32
 	session  uint16
 	diff     serialDiff
+	updates  checkErrorUpdate
+}
+
+// checkErrorUpdate will let us know timings of ROA updates.
+type checkErrorUpdate struct {
+	lastCheck  time.Time
+	lastError  time.Time
+	lastUpdate time.Time
 }
 
 // serialDiff will have a list of add and deletes of ROAs to get from
@@ -199,6 +207,15 @@ func (s *CacheServer) status() {
 		log.Printf("There are %d ROAs\n", len(s.roas))
 		log.Printf("There are %d IPv4 ROAs and %d IPv6 ROAs\n", v4, v6)
 		log.Printf("len=%d cap=%d\n", len(s.roas), cap(s.roas))
+		if !s.updates.lastCheck.IsZero() {
+			log.Printf("Last check was %v\n", s.updates.lastCheck.Format("2006-01-02 15:04:05"))
+		}
+		if !s.updates.lastError.IsZero() {
+			log.Printf("Last error checking update was %v\n", s.updates.lastError.Format("2006-01-02 15:04:05"))
+		}
+		if !s.updates.lastUpdate.IsZero() {
+			log.Printf("Last ROA change was %v\n", s.updates.lastUpdate.Format("2006-01-02 15:04:05"))
+		}
 		log.Println("*** eom ***")
 		s.mutex.RUnlock()
 		time.Sleep(5 * time.Minute)
@@ -268,17 +285,20 @@ func (s *CacheServer) updateROAs(f string) {
 	for {
 		time.Sleep(refreshROA)
 		s.mutex.Lock()
+		s.updates.lastCheck = time.Now()
 		roas, err := readROAs(f)
 		if err != nil {
 			log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
+			s.updates.lastError = time.Now()
 			s.mutex.Unlock()
 			return
-			// TODO: What happens if I'm unable to update ROAs? The diff struct could get old.
-			// Check the client diff update to ensure it's doing the right thing
 		}
 
 		// Calculate diffs
 		s.diff = makeDiff(roas, s.roas, s.serial)
+		if s.diff.diff {
+			s.updates.lastUpdate = time.Now()
+		}
 
 		// Increment serial and replace
 		s.serial++
