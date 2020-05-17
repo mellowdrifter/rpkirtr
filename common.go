@@ -147,7 +147,10 @@ func readROAs(url string) ([]roa, error) {
 	}
 
 	var r rpkiResponse
-	json.Unmarshal(f, &r)
+	err = json.Unmarshal(f, &r)
+	if err != nil {
+		return nil, err
+	}
 
 	// We know how many ROAs we have, so we can add that capacity directly
 	roas := make([]roa, 0, len(r.roas.Roas))

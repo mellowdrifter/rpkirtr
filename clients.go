@@ -124,7 +124,6 @@ func (c *client) sendRoa() {
 		expire:  expire,
 	}
 	epdu.serialize(c.conn)
-
 }
 
 // TODO: Test this somehow
