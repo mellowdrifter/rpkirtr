@@ -1,5 +1,5 @@
 // This app implements RFC8210.
-// The Resource Public Key Infrastructure (RPKI) to Router Protocol,
+// The Resource Public Key Infrastructure (RPKI) to Router Protocol.
 // Version 1
 
 package main
@@ -16,6 +16,8 @@ import (
 
 	"gopkg.in/ini.v1"
 )
+
+type rir uint8
 
 const (
 	cacheurl = "https://rpki.cloudflare.com/rpki.json"
@@ -39,9 +41,6 @@ const (
 	maxMinMaskv4 = 24
 	maxMinMaskv6 = 48
 )
-
-// enum used for RIRs
-type rir uint8
 
 // jsonroa is a struct to push the cloudflare ROA data into.
 type jsonroa struct {
@@ -76,7 +75,7 @@ type roas struct {
 	Roas []jsonroa `json:"roas"`
 }
 
-// CacheServer is our RPKI server.
+// CacheServer is our RPKI cache server.
 type CacheServer struct {
 	listener net.Listener
 	clients  []*client
@@ -145,24 +144,25 @@ func run() error {
 	// We need our initial set of ROAs.
 	log.Printf("Downloading %s\n", cacheurl)
 	roas, err := readROAs(cacheurl)
+	init := time.Now() // Use this value to save time of first roa update.
 	if err != nil {
 		return fmt.Errorf("Unable to download ROAs, aborting: %w", err)
 	}
+	log.Println("Initial roa set downloaded")
 
 	// Set up our server with it's initial data.
 	rpki := CacheServer{
 		mutex:   &sync.RWMutex{},
 		session: uint16(rand.Intn(65535)),
 		roas:    roas,
+		updates: checkErrorUpdate{
+			lastCheck: init,
+		},
 	}
-	rpki.mutex = &sync.RWMutex{}
 	rpki.listen(port)
 
-	// ROAs should be updated at every refresh interval
-	go rpki.updateROAs(cacheurl)
-
 	// Show me the status of the server. Mostly for debugging
-	go rpki.status()
+	go rpki.update()
 
 	// I'm listening!
 	defer rpki.close()
@@ -184,9 +184,13 @@ func (s *CacheServer) listen(port int64) {
 }
 
 // Status is just temporary. I may allow this info to be gathered via RPC or something
-func (s *CacheServer) status() {
+func (s *CacheServer) update() {
 	for {
+		// Update our ROAs
+		s.updateROAs(cacheurl)
+
 		s.mutex.RLock()
+		// Count how many ROAs we have.
 		var v4, v6 int
 		for _, r := range s.roas {
 			if r.IsV4 {
@@ -218,7 +222,7 @@ func (s *CacheServer) status() {
 		}
 		log.Println("*** eom ***")
 		s.mutex.RUnlock()
-		time.Sleep(5 * time.Minute)
+		time.Sleep(refreshROA)
 	}
 
 }
@@ -282,34 +286,31 @@ func (s *CacheServer) remove(c *client) {
 
 // updateROAs will update the server struct with the current list of ROAs
 func (s *CacheServer) updateROAs(f string) {
-	for {
-		time.Sleep(refreshROA)
-		s.mutex.Lock()
-		s.updates.lastCheck = time.Now()
-		roas, err := readROAs(f)
-		if err != nil {
-			log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
-			s.updates.lastError = time.Now()
-			s.mutex.Unlock()
-			return
-		}
-
-		// Calculate diffs
-		s.diff = makeDiff(roas, s.roas, s.serial)
-		if s.diff.diff {
-			s.updates.lastUpdate = time.Now()
-		}
-
-		// Increment serial and replace
-		s.serial++
-		s.roas = roas
-		log.Printf("roas updated, serial is now %d\n", s.serial)
-
+	s.mutex.Lock()
+	s.updates.lastCheck = time.Now()
+	roas, err := readROAs(f)
+	if err != nil {
+		log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
+		s.updates.lastError = time.Now()
 		s.mutex.Unlock()
-		// Notify all clients that the serial number has been updated.
-		for _, c := range s.clients {
-			log.Printf("sending a notify to %s\n", c.addr)
-			c.notify(s.serial, s.session)
-		}
+		return
+	}
+
+	// Calculate diffs
+	s.diff = makeDiff(roas, s.roas, s.serial)
+	if s.diff.diff {
+		s.updates.lastUpdate = time.Now()
+	}
+
+	// Increment serial and replace
+	s.serial++
+	s.roas = roas
+	log.Printf("roas updated, serial is now %d\n", s.serial)
+
+	s.mutex.Unlock()
+	// Notify all clients that the serial number has been updated.
+	for _, c := range s.clients {
+		log.Printf("sending a notify to %s\n", c.addr)
+		c.notify(s.serial, s.session)
 	}
 }

@@ -12,37 +12,13 @@ import (
 	"strings"
 )
 
-type monitor struct {
-	Alloc,
-	TotalAlloc,
-	Sys,
-	Mallocs,
-	Frees,
-	LiveObjects,
-	PauseTotalNs uint64
-	NumGC        uint32
-	NumGoroutine int
-}
-
-// stringToInt does inline convertions and logs errors, instead of panicing.
-func stringToInt(s string) int {
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		log.Printf("Unable to convert %s to int", s)
-		return 0
-	}
-
-	return n
-}
-
-// The Cloudflare JSON prepends AS to all numbers. Need to remove it here.
-func asnToInt(a string) int {
+//The Cloudflare JSON prepends AS to all numbers. Will remove that here.
+func jsonAsnToInt(a string) int {
 	n, err := strconv.Atoi(a[2:])
 	if err != nil {
 		log.Printf("Unable to convert ASN %s to int", a)
 		return 0
 	}
-
 	return n
 }
 
@@ -88,19 +64,8 @@ func makeDiff(new []roa, old []roa, serial uint32) serialDiff {
 		}
 	}
 
-	// There is only an actual diff is something is added or deleted.
-	diff := (len(addROA) > 0 || len(delROA) > 0)
-
-	// The following is for debugging purposes. Will remove eventually once I have test coverage.
-	if len(addROA) > 0 {
-		log.Printf("New ROAs to be added: %+v\n", addROA)
-	}
-	if len(delROA) > 0 {
-		log.Printf("Old ROAs to be deleted: %+v\n", delROA)
-	}
-	if !diff {
-		log.Println("No diff calculated this run")
-	}
+	// There is only a diff is something is added or deleted.
+	diff := len(addROA) > 0 || len(delROA) > 0
 
 	return serialDiff{
 		oldSerial: serial,
@@ -119,7 +84,6 @@ func roasToMap(roas []roa) map[string]roa {
 
 	}
 	return rm
-
 }
 
 // readROAs will fetch the latest set of ROAs and add to a local struct
@@ -129,13 +93,13 @@ func readROAs(url string) ([]roa, error) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to retrieve ROAs from url: %w", err)
 	}
 	defer resp.Body.Close()
 
 	f, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to read body of response: %w", err)
 	}
 
 	rirs := map[string]rir{

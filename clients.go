@@ -21,8 +21,8 @@ type client struct {
 
 // reset has no data besides the header
 func (c *client) sendReset() {
-	rpdu := cacheResetPDU{}
-	rpdu.serialize(c.conn)
+	r := cacheResetPDU{}
+	r.serialize(c.conn)
 }
 
 // sendDiff should send additions and deletions to the client.
