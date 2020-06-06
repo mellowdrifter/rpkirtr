@@ -42,7 +42,7 @@ func ipv6ToByte(ip net.IP) [16]byte {
 
 // makeDiff will return a list of ROAs that need to be deleted or updated
 // in order for a particular serial version to updated to the latest version.
-func makeDiff(new []roa, old []roa, serial uint32) serialDiff {
+func makeDiff(new, old []roa, serial uint32) serialDiff {
 	var addROA, delROA []roa
 
 	newm := roasToMap(new)
