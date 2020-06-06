@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -139,42 +141,33 @@ func (c *client) error(code int, report string) {
 // Handle each client.
 func (s *CacheServer) handleClient(c *client) {
 	log.Printf("Serving %s\n", c.conn.RemoteAddr().String())
+
 	// Remove client when exiting
 	defer s.remove(c)
+	defer c.conn.Close()
 
 	for {
+
 		// What is the incoming PDU?
-		var header headerPDU
-		binary.Read(c.conn, binary.BigEndian, &header)
-		// debug logging for now
-		if header != (headerPDU{}) {
-			log.Printf("Received: %#v\n", header)
+		pdu, err := getPDU(c.conn)
+		if err != nil {
+			log.Printf("error received when getting the pdu: %v", err)
+			return
+		}
+		header, err := decodePDUHeader(pdu[:2])
+		if err != nil {
+			log.Printf("error received when decoding the header: %v", err)
+			return
 		}
 
 		switch {
-		// If header is all zeros, the connection is terminated
-		case header.Version == 0 && header.Ptype == 0:
-			log.Printf("Client at %s is leaving\n", c.conn.RemoteAddr())
-			c.conn.Close()
-			return
-
-		// I only support version 1 for now.
-		case header.Version != 1:
-			log.Printf("Received something I don't know :'(  %+v\n", header)
-			c.error(4, "Unsupported Protocol Version")
-			c.conn.Close()
-			return
-
 		case header.Ptype == resetQuery:
-			var r resetQueryPDU
-			binary.Read(c.conn, binary.BigEndian, &r)
 			log.Printf("received a reset Query PDU from %s\n", c.addr)
 			c.sendRoa()
 
 		case header.Ptype == serialQuery:
-			var q serialQueryPDU
-			binary.Read(c.conn, binary.BigEndian, &q)
 			log.Printf("received a serial Query PDU from %s\n", c.addr)
+			q := getSerialQueryPDU(pdu[2:])
 			// If the client sends in the current or previous serial, then we can handle it.
 			// If the serial is older or unknown, we need to send a reset.
 			c.mutex.RLock()
@@ -199,4 +192,63 @@ func (s *CacheServer) handleClient(c *client) {
 			}
 		}
 	}
+}
+
+func getSerialQueryPDU(pdu []byte) serialQueryPDU {
+	var q serialQueryPDU
+	q.Session = binary.BigEndian.Uint16(pdu[:2])
+	q.Length = binary.BigEndian.Uint32(pdu[2:6])
+	q.Serial = binary.BigEndian.Uint32(pdu[6:10])
+
+	return q
+}
+
+// getPDU will return a byte slice which contains a PDU.
+func getPDU(r io.Reader) ([]byte, error) {
+
+	/*
+	   0          8          16         24        31
+	   .-------------------------------------------.
+	   | Protocol |   PDU    |                     |
+	   | Version  |   Type   |     Session ID      |
+	   +-------------------------------------------+
+	   |                                           |
+	   |                 Length                    |
+	   |                                           |
+	   `-------------------------------------------'
+	*/
+	buf := make([]byte, minPDULength)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		log.Printf("Returning on line 222: %v", buf)
+		return nil, err
+	}
+
+	// Read the rest of the PDU, minus the header.
+	length := binary.BigEndian.Uint32(buf[4:8]) - 8
+	if length > 0 {
+		lr := io.LimitReader(r, int64(length))
+		data := make([]byte, length)
+		if _, err := io.ReadFull(lr, data); err != nil {
+			log.Printf("Returning on line 232: %v", buf)
+			return nil, err
+		}
+		buf = append(buf, data...)
+	}
+	return buf, nil
+}
+
+// decodePDUHeader does a size and version check. Otherwise it returns just the header.
+func decodePDUHeader(pdu []byte) (headerPDU, error) {
+	var header headerPDU
+	if len(pdu) < headPDULength {
+		return header, fmt.Errorf("PDU headers have a minimin size of 2. PDU passed has length %d", len(pdu))
+	}
+	if int(pdu[0]) != 1 {
+		return header, fmt.Errorf("only version 1 is supported. PDU has version %s", int(pdu[0]))
+	}
+	header.Version = uint8(pdu[0])
+	header.Ptype = uint8(pdu[1])
+	log.Printf("Line 251: %v", header)
+
+	return header, nil
 }

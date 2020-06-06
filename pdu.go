@@ -23,6 +23,9 @@ const (
 	version0 uint8 = 0
 	version1 uint8 = 1
 
+	minPDULength  = 8
+	headPDULength = 2
+
 	// flags
 	withdraw uint8 = 0
 	announce uint8 = 1

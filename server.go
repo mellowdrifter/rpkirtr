@@ -66,6 +66,7 @@ type rpkiResponse struct {
 	metadata `json:"metadata"`
 	roas
 }
+
 type metadata struct {
 	Generated float64 `json:"generated"`
 	Valid     float64 `json:"valid"`
@@ -159,12 +160,14 @@ func run() error {
 			lastCheck: init,
 		},
 	}
-	rpki.listen(port)
 
-	// Show me the status of the server. Mostly for debugging
-	go rpki.update()
+	// keep ROAs updated.
+	go rpki.updateROAs(cacheurl)
+
+	go rpki.status()
 
 	// I'm listening!
+	rpki.listen(port)
 	defer rpki.close()
 	rpki.start()
 
@@ -183,12 +186,9 @@ func (s *CacheServer) listen(port int64) {
 
 }
 
-// Status is just temporary. I may allow this info to be gathered via RPC or something
-func (s *CacheServer) update() {
+// Log current ROA status
+func (s *CacheServer) status() {
 	for {
-		// Update our ROAs
-		s.updateROAs(cacheurl)
-
 		s.mutex.RLock()
 		// Count how many ROAs we have.
 		var v4, v6 int
@@ -198,8 +198,8 @@ func (s *CacheServer) update() {
 			} else {
 				v6++
 			}
-
 		}
+
 		log.Println("*** Status ***")
 		log.Printf("I currently have %d clients connected\n", len(s.clients))
 		for i, v := range s.clients {
@@ -210,7 +210,6 @@ func (s *CacheServer) update() {
 		log.Printf("Current size of diff is %d\n", len(s.diff.addRoa)+len(s.diff.delRoa))
 		log.Printf("There are %d ROAs\n", len(s.roas))
 		log.Printf("There are %d IPv4 ROAs and %d IPv6 ROAs\n", v4, v6)
-		log.Printf("len=%d cap=%d\n", len(s.roas), cap(s.roas))
 		if !s.updates.lastCheck.IsZero() {
 			log.Printf("Last check was %v\n", s.updates.lastCheck.Format("2006-01-02 15:04:05"))
 		}
@@ -286,31 +285,34 @@ func (s *CacheServer) remove(c *client) {
 
 // updateROAs will update the server struct with the current list of ROAs
 func (s *CacheServer) updateROAs(f string) {
-	s.mutex.Lock()
-	s.updates.lastCheck = time.Now()
-	roas, err := readROAs(f)
-	if err != nil {
-		log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
-		s.updates.lastError = time.Now()
+	for {
+		time.Sleep(refreshROA)
+		s.mutex.Lock()
+		s.updates.lastCheck = time.Now()
+		roas, err := readROAs(f)
+		if err != nil {
+			log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
+			s.updates.lastError = time.Now()
+			s.mutex.Unlock()
+			return
+		}
+
+		// Calculate diffs
+		s.diff = makeDiff(roas, s.roas, s.serial)
+		if s.diff.diff {
+			s.updates.lastUpdate = time.Now()
+		}
+
+		// Increment serial and replace
+		s.serial++
+		s.roas = roas
+		log.Printf("roas updated, serial is now %d\n", s.serial)
+
 		s.mutex.Unlock()
-		return
-	}
-
-	// Calculate diffs
-	s.diff = makeDiff(roas, s.roas, s.serial)
-	if s.diff.diff {
-		s.updates.lastUpdate = time.Now()
-	}
-
-	// Increment serial and replace
-	s.serial++
-	s.roas = roas
-	log.Printf("roas updated, serial is now %d\n", s.serial)
-
-	s.mutex.Unlock()
-	// Notify all clients that the serial number has been updated.
-	for _, c := range s.clients {
-		log.Printf("sending a notify to %s\n", c.addr)
-		c.notify(s.serial, s.session)
+		// Notify all clients that the serial number has been updated.
+		for _, c := range s.clients {
+			log.Printf("sending a notify to %s\n", c.addr)
+			c.notify(s.serial, s.session)
+		}
 	}
 }
