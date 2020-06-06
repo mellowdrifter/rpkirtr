@@ -244,11 +244,16 @@ func decodePDUHeader(pdu []byte) (headerPDU, error) {
 		return header, fmt.Errorf("PDU headers have a minimin size of 2. PDU passed has length %d", len(pdu))
 	}
 	if int(pdu[0]) != 1 {
-		return header, fmt.Errorf("only version 1 is supported. PDU has version %s", int(pdu[0]))
+		return header, fmt.Errorf("only version 1 is supported. PDU has version %d", int(pdu[0]))
 	}
 	header.Version = uint8(pdu[0])
 	header.Ptype = uint8(pdu[1])
 	log.Printf("Line 251: %v", header)
+
+	// PDU types currently number from 0 to 10, excluding 5. Anything else is invalid.
+	if header.Ptype > 10 || header.Ptype == 5 {
+		return header, fmt.Errorf("unsupported pdu version received: %d", header.Ptype)
+	}
 
 	return header, nil
 }
