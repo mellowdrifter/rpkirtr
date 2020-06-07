@@ -107,6 +107,7 @@ type serialDiff struct {
 }
 
 func main() {
+
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
@@ -115,6 +116,19 @@ func main() {
 
 // run will do the initial set up. Returns error to main.
 func run() error {
+	/*tr, err := os.Create("/tmp/out.trace")
+	if err != nil {
+		panic(err)
+	}
+	defer tr.Close()
+
+	err = trace.Start(tr)
+	if err != nil {
+		panic(err)
+	}
+	defer trace.Stop()
+	*/
+
 	// load in config
 	exe, err := os.Executable()
 	if err != nil {
@@ -137,6 +151,9 @@ func run() error {
 		return fmt.Errorf("failed to open logfile: %w", err)
 	}
 	defer f.Close()
+
+	// Enable line numbers in logging
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetOutput(f)
 
 	// random seed used for session ID

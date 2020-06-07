@@ -219,7 +219,6 @@ func getPDU(r io.Reader) ([]byte, error) {
 	*/
 	buf := make([]byte, minPDULength)
 	if _, err := io.ReadFull(r, buf); err != nil {
-		log.Printf("Returning on line 222: %v", buf)
 		return nil, err
 	}
 
@@ -229,7 +228,6 @@ func getPDU(r io.Reader) ([]byte, error) {
 		lr := io.LimitReader(r, int64(length))
 		data := make([]byte, length)
 		if _, err := io.ReadFull(lr, data); err != nil {
-			log.Printf("Returning on line 232: %v", buf)
 			return nil, err
 		}
 		buf = append(buf, data...)
@@ -248,7 +246,6 @@ func decodePDUHeader(pdu []byte) (headerPDU, error) {
 	}
 	header.Version = uint8(pdu[0])
 	header.Ptype = uint8(pdu[1])
-	log.Printf("Line 251: %v", header)
 
 	// PDU types currently number from 0 to 10, excluding 5. Anything else is invalid.
 	if header.Ptype > 10 || header.Ptype == 5 {
