@@ -133,7 +133,7 @@ func TestMakeDiff(t *testing.T) {
 		}, {
 			desc: "one ROA, no diff",
 			new: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
@@ -141,7 +141,7 @@ func TestMakeDiff(t *testing.T) {
 				},
 			},
 			old: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
@@ -159,7 +159,7 @@ func TestMakeDiff(t *testing.T) {
 		}, {
 			desc: "Min mask change",
 			new: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 23,
 					MaxMask: 32,
@@ -167,7 +167,7 @@ func TestMakeDiff(t *testing.T) {
 				},
 			},
 			old: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
@@ -179,7 +179,7 @@ func TestMakeDiff(t *testing.T) {
 				oldSerial: 1,
 				newSerial: 2,
 				delRoa: []roa{
-					roa{
+					{
 						Prefix:  "192.168.1.1",
 						MinMask: 24,
 						MaxMask: 32,
@@ -187,7 +187,7 @@ func TestMakeDiff(t *testing.T) {
 					},
 				},
 				addRoa: []roa{
-					roa{
+					{
 						Prefix:  "192.168.1.1",
 						MinMask: 23,
 						MaxMask: 32,
@@ -199,7 +199,7 @@ func TestMakeDiff(t *testing.T) {
 		}, {
 			desc: "Max mask change",
 			new: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 31,
@@ -207,7 +207,7 @@ func TestMakeDiff(t *testing.T) {
 				},
 			},
 			old: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
@@ -219,7 +219,7 @@ func TestMakeDiff(t *testing.T) {
 				oldSerial: 1,
 				newSerial: 2,
 				delRoa: []roa{
-					roa{
+					{
 						Prefix:  "192.168.1.1",
 						MinMask: 24,
 						MaxMask: 32,
@@ -227,7 +227,7 @@ func TestMakeDiff(t *testing.T) {
 					},
 				},
 				addRoa: []roa{
-					roa{
+					{
 						Prefix:  "192.168.1.1",
 						MinMask: 24,
 						MaxMask: 31,
@@ -239,7 +239,7 @@ func TestMakeDiff(t *testing.T) {
 		}, {
 			desc: "ASN change",
 			new: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
@@ -247,7 +247,7 @@ func TestMakeDiff(t *testing.T) {
 				},
 			},
 			old: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
