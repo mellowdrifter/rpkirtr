@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"gopkg.in/ini.v1"
+	"inet.af/netaddr"
 )
 
 type rir uint8
@@ -41,17 +42,14 @@ const (
 )
 
 // Converted ROA struct with all the details.
-// Handy calculator - http://golang-sizeof.tips/ - current size 24
 type roa struct {
-	Prefix  string
-	MinMask uint8
+	// TODO: Make Prefix a net.ipnet - or that other IP package!
+	// inet.af/netaddr
+	Prefix  netaddr.IPPrefix
 	MaxMask uint8
 	ASN     uint32
 	RIR     rir
-	IsV4    bool
 }
-
-// rpkiResponse, metadata, and roas are all used to unmarshal the json file.
 
 // CacheServer is our RPKI cache server.
 type CacheServer struct {
@@ -187,7 +185,7 @@ func (s *CacheServer) status() {
 		// Count how many ROAs we have.
 		var v4, v6 int
 		for _, r := range s.roas {
-			if r.IsV4 {
+			if r.Prefix.IP().Is4() {
 				v4++
 			} else {
 				v6++

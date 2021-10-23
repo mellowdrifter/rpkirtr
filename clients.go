@@ -55,23 +55,22 @@ func (c *client) sendDiff(diff *serialDiff, session uint16) {
 
 // writePrefixPDU will directly write the update or withdraw prefix PDU.
 func writePrefixPDU(r *roa, c net.Conn, flag uint8) {
-	IPAddress := net.ParseIP(r.Prefix)
-	switch r.IsV4 {
+	switch r.Prefix.IP().Is4() {
 	case true:
 		ppdu := ipv4PrefixPDU{
 			flags:  flag,
-			min:    r.MinMask,
+			min:    r.Prefix.Bits(),
 			max:    r.MaxMask,
-			prefix: ipv4ToByte(IPAddress.To4()),
+			prefix: r.Prefix.IP().As4(),
 			asn:    r.ASN,
 		}
 		ppdu.serialize(c)
 	case false:
 		ppdu := ipv6PrefixPDU{
 			flags:  flag,
-			min:    r.MinMask,
+			min:    r.Prefix.Bits(),
 			max:    r.MaxMask,
-			prefix: ipv6ToByte(IPAddress.To16()),
+			prefix: r.Prefix.IP().As16(),
 			asn:    r.ASN,
 		}
 		ppdu.serialize(c)
@@ -207,15 +206,15 @@ func getSerialQueryPDU(pdu []byte) serialQueryPDU {
 func getPDU(r io.Reader) ([]byte, error) {
 
 	/*
-	   0          8          16         24        31
-	   .-------------------------------------------.
-	   | Protocol |   PDU    |                     |
-	   | Version  |   Type   |     Session ID      |
-	   +-------------------------------------------+
-	   |                                           |
-	   |                 Length                    |
-	   |                                           |
-	   `-------------------------------------------'
+		0          8          16         24        31
+		.-------------------------------------------.
+		| Protocol |   PDU    |                     |
+		| Version  |   Type   |     Session ID      |
+		+-------------------------------------------+
+		|                                           |
+		|                 Length                    |
+		|                                           |
+		`-------------------------------------------'
 	*/
 	buf := make([]byte, minPDULength)
 	if _, err := io.ReadFull(r, buf); err != nil {
