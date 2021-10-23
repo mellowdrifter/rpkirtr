@@ -259,7 +259,7 @@ func TestMakeDiff(t *testing.T) {
 				oldSerial: 1,
 				newSerial: 2,
 				delRoa: []roa{
-					roa{
+					{
 						Prefix:  "192.168.1.1",
 						MinMask: 24,
 						MaxMask: 32,
@@ -267,7 +267,7 @@ func TestMakeDiff(t *testing.T) {
 					},
 				},
 				addRoa: []roa{
-					roa{
+					{
 						Prefix:  "192.168.1.1",
 						MinMask: 24,
 						MaxMask: 32,
@@ -279,7 +279,7 @@ func TestMakeDiff(t *testing.T) {
 		}, {
 			desc: "Two ROAs to one",
 			new: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
@@ -287,13 +287,13 @@ func TestMakeDiff(t *testing.T) {
 				},
 			},
 			old: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
 					ASN:     123,
 				},
-				roa{
+				{
 					Prefix:  "2001:db8::",
 					MinMask: 32,
 					MaxMask: 48,
@@ -305,7 +305,7 @@ func TestMakeDiff(t *testing.T) {
 				oldSerial: 1,
 				newSerial: 2,
 				delRoa: []roa{
-					roa{
+					{
 						Prefix:  "2001:db8::",
 						MinMask: 32,
 						MaxMask: 48,
@@ -318,13 +318,13 @@ func TestMakeDiff(t *testing.T) {
 		}, {
 			desc: "One ROA to two",
 			new: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
 					ASN:     123,
 				},
-				roa{
+				{
 					Prefix:  "2001:db8::",
 					MinMask: 32,
 					MaxMask: 48,
@@ -332,7 +332,7 @@ func TestMakeDiff(t *testing.T) {
 				},
 			},
 			old: []roa{
-				roa{
+				{
 					Prefix:  "192.168.1.1",
 					MinMask: 24,
 					MaxMask: 32,
@@ -345,7 +345,7 @@ func TestMakeDiff(t *testing.T) {
 				newSerial: 2,
 				delRoa:    nil,
 				addRoa: []roa{
-					roa{
+					{
 						Prefix:  "2001:db8::",
 						MinMask: 32,
 						MaxMask: 48,

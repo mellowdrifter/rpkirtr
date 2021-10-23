@@ -20,8 +20,6 @@ import (
 type rir uint8
 
 const (
-	cacheurl = "https://rpki.cloudflare.com/rpki.json"
-
 	// Each region will just be an enum.
 	afrinic rir = 0
 	apnic   rir = 1
@@ -30,7 +28,7 @@ const (
 	ripe    rir = 4
 
 	// refreshROA is the amount of seconds to wait until a new json is pulled.
-	refreshROA = 15 * time.Minute
+	refreshROA = 6 * time.Minute
 
 	// Intervals are the default intervals in seconds if no specific value is configured
 	refresh = uint32(3600) // 1 - 86400
@@ -41,14 +39,6 @@ const (
 	maxMinMaskv4 = 24
 	maxMinMaskv6 = 48
 )
-
-// jsonroa is a struct to push the cloudflare ROA data into.
-type jsonroa struct {
-	Prefix string  `json:"prefix"`
-	Mask   float64 `json:"maxLength"`
-	ASN    string  `json:"asn"`
-	RIR    string  `json:"ta"`
-}
 
 // Converted ROA struct with all the details.
 // Handy calculator - http://golang-sizeof.tips/ - current size 24
@@ -62,19 +52,6 @@ type roa struct {
 }
 
 // rpkiResponse, metadata, and roas are all used to unmarshal the json file.
-type rpkiResponse struct {
-	metadata `json:"metadata"`
-	roas
-}
-
-type metadata struct {
-	Generated float64 `json:"generated"`
-	Valid     float64 `json:"valid"`
-}
-
-type roas struct {
-	Roas []jsonroa `json:"roas"`
-}
 
 // CacheServer is our RPKI cache server.
 type CacheServer struct {
@@ -160,8 +137,7 @@ func run() error {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	// We need our initial set of ROAs.
-	log.Printf("Downloading %s\n", cacheurl)
-	roas, err := readROAs(cacheurl)
+	roas, err := readROAs()
 	init := time.Now() // Use this value to save time of first roa update.
 	if err != nil {
 		return fmt.Errorf("Unable to download ROAs, aborting: %w", err)
@@ -179,7 +155,7 @@ func run() error {
 	}
 
 	// keep ROAs updated.
-	go rpki.updateROAs(cacheurl)
+	go rpki.updateROAs()
 
 	go rpki.status()
 
@@ -193,6 +169,7 @@ func run() error {
 }
 
 // Start listening
+// TODO(only on IPv4?)
 func (s *CacheServer) listen(port int64) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -301,12 +278,12 @@ func (s *CacheServer) remove(c *client) {
 }
 
 // updateROAs will update the server struct with the current list of ROAs
-func (s *CacheServer) updateROAs(f string) {
+func (s *CacheServer) updateROAs() {
 	for {
 		time.Sleep(refreshROA)
 		s.mutex.Lock()
 		s.updates.lastCheck = time.Now()
-		roas, err := readROAs(f)
+		roas, err := readROAs()
 		if err != nil {
 			log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
 			s.updates.lastError = time.Now()

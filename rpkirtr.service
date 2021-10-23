@@ -1,0 +1,14 @@
+[Unit]
+Description=rpkirtr server
+Wants=network.target
+
+[Service]
+Type=simple
+User=bgp
+WorkingDirectory=/home/bgp/rpkirtr
+ExecStart=/home/bgp/rpkirtr/rpkirtr
+Restart=always
+RestartSec=20s
+
+[Install]
+WantedBy=multi-user.target
