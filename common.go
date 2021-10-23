@@ -101,9 +101,9 @@ func getIntJSON(url string) ([]roa, error) {
 
 	// jsonroa is a struct to push the ROA data into.
 	type jsonroa struct {
-		Prefix string  `json:"prefix"`
-		Mask   float64 `json:"maxLength"`
-		ASN    float64 `json:"asn"`
+		Prefix string `json:"prefix"`
+		Mask   int    `json:"maxLength"`
+		ASN    int    `json:"asn"`
 	}
 
 	type roas struct {
@@ -153,9 +153,9 @@ func getStringJSON(url string) ([]roa, error) {
 
 	// jsonroa is a struct to push the ROA data into.
 	type jsonroa struct {
-		Prefix string  `json:"prefix"`
-		Mask   float64 `json:"maxLength"`
-		ASN    string  `json:"asn"`
+		Prefix string `json:"prefix"`
+		Mask   int    `json:"maxLength"`
+		ASN    string `json:"asn"`
 	}
 
 	type roas struct {
