@@ -35,7 +35,7 @@ func TestAsnToInt(t *testing.T) {
 	tests := []struct {
 		desc    string
 		asnText string
-		want    int
+		want    uint32
 	}{
 		{
 			desc:    "test 1",
@@ -49,7 +49,7 @@ func TestAsnToInt(t *testing.T) {
 		},
 	}
 	for _, v := range tests {
-		got := asnToInt(v.asnText)
+		got := asnToUint32(v.asnText)
 		if got != v.want {
 			t.Errorf("Error on %s. Got %d, Want %d\n", v.desc, got, v.want)
 		}

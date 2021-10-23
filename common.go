@@ -102,8 +102,8 @@ func getIntJSON(url string) ([]roa, error) {
 	// jsonroa is a struct to push the ROA data into.
 	type jsonroa struct {
 		Prefix string `json:"prefix"`
-		Mask   int    `json:"maxLength"`
-		ASN    int    `json:"asn"`
+		Mask   uint8  `json:"maxLength"`
+		ASN    uint32 `json:"asn"`
 	}
 
 	type roas struct {
@@ -128,8 +128,8 @@ func getIntJSON(url string) ([]roa, error) {
 		}
 		newROAs = append(newROAs, roa{
 			Prefix:  prefix,
-			MaxMask: uint8(r.Mask),
-			ASN:     uint32(r.ASN),
+			MaxMask: r.Mask,
+			ASN:     r.ASN,
 		})
 	}
 
@@ -154,7 +154,7 @@ func getStringJSON(url string) ([]roa, error) {
 	// jsonroa is a struct to push the ROA data into.
 	type jsonroa struct {
 		Prefix string `json:"prefix"`
-		Mask   int    `json:"maxLength"`
+		Mask   uint8  `json:"maxLength"`
 		ASN    string `json:"asn"`
 	}
 
@@ -180,8 +180,8 @@ func getStringJSON(url string) ([]roa, error) {
 		}
 		newROAs = append(newROAs, roa{
 			Prefix:  prefix,
-			MaxMask: uint8(r.Mask),
-			ASN:     uint32(asnToInt(r.ASN)),
+			MaxMask: r.Mask,
+			ASN:     asnToUint32(r.ASN),
 		})
 	}
 
@@ -246,13 +246,13 @@ func stringToInt(s string) int {
 	return n
 }
 
-// The Cloudflare JSON prepends AS to all numbers. Need to remove it here.
-func asnToInt(a string) int {
+// Some json VRPs contain ASXXX instead of just XXX as the ASN
+func asnToUint32(a string) uint32 {
 	n, err := strconv.Atoi(a[2:])
 	if err != nil {
 		log.Printf("Unable to convert ASN %s to int", a)
 		return 0
 	}
 
-	return n
+	return uint32(n)
 }
