@@ -1,6 +1,0 @@
-make --dry-run --always-make --keep-going --print-directory
-make: Entering directory '/home/mellowd/go/src/github.com/mellowdrifter/rpkirtr'
-make: Leaving directory '/home/mellowd/go/src/github.com/mellowdrifter/rpkirtr'
- 
-make: *** No targets specified and no makefile found.  Stop.
- 

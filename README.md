@@ -10,8 +10,6 @@ Complile and run. Accepts connections over IPv4 and IPv6.
 4. create [config.ini](https://github.com/mellowdrifter/rpkirtr/blob/master/config.ini)
 5. ./rpkirtr
 
-ini.v1 is the only external package required.
-
 Point some clients to the server address, IPv4 or IPv6, and that's it.
 
 Run it as a daemon for persistance.
