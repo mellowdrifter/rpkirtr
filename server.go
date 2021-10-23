@@ -36,7 +36,7 @@ const (
 	retry   = uint32(600)  // 1 - 7200
 	expire  = uint32(7200) // 600 - 172800
 
-	//maxMinMask is the largest min mask wanted
+	// maxMinMask is the largest min mask wanted
 	maxMinMaskv4 = 24
 	maxMinMaskv6 = 48
 )
@@ -82,7 +82,6 @@ type serialDiff struct {
 }
 
 func main() {
-
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
@@ -121,7 +120,7 @@ func run() error {
 	}
 
 	// set up logging
-	f, err := os.OpenFile(logf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(logf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to open logfile: %w", err)
 	}
@@ -163,7 +162,6 @@ func run() error {
 	rpki.start()
 
 	return nil
-
 }
 
 // Start listening
@@ -175,7 +173,6 @@ func (s *CacheServer) listen(port int64) {
 	}
 	s.listener = l
 	log.Printf("Listening on port %d\n", port)
-
 }
 
 // Log current ROA status
@@ -215,7 +212,6 @@ func (s *CacheServer) status() {
 		s.mutex.RUnlock()
 		time.Sleep(refreshROA)
 	}
-
 }
 
 // close off the listener if existing

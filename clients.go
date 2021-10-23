@@ -50,7 +50,6 @@ func (c *client) sendDiff(diff *serialDiff, session uint16) {
 		expire:  uint32(171999),
 	}
 	epdu.serialize(c.conn)
-
 }
 
 // writePrefixPDU will directly write the update or withdraw prefix PDU.
@@ -84,7 +83,6 @@ func (c *client) notify(serial uint32, session uint16) {
 		Serial:  serial,
 	}
 	npdu.serialize(c.conn)
-
 }
 
 // sendEmpty sends an empty response if there is no update required.
@@ -101,7 +99,6 @@ func (c *client) sendEmpty(session uint16) {
 		expire:  uint32(171999),
 	}
 	epdu.serialize(c.conn)
-
 }
 
 func (c *client) sendRoa() {
@@ -134,7 +131,6 @@ func (c *client) error(code int, report string) {
 		report: report,
 	}
 	epdu.serialize(c.conn)
-
 }
 
 // Handle each client.
@@ -204,7 +200,6 @@ func getSerialQueryPDU(pdu []byte) serialQueryPDU {
 
 // getPDU will return a byte slice which contains a PDU.
 func getPDU(r io.Reader) ([]byte, error) {
-
 	/*
 		0          8          16         24        31
 		.-------------------------------------------.

@@ -180,7 +180,6 @@ type ipv4PrefixPDU struct {
 }
 
 func (p *ipv4PrefixPDU) serialize(wr io.Writer) {
-
 	pdu := struct {
 		version uint8
 		ptype   uint8
@@ -205,7 +204,6 @@ func (p *ipv4PrefixPDU) serialize(wr io.Writer) {
 		p.asn,
 	}
 	binary.Write(wr, binary.BigEndian, pdu)
-
 }
 
 type ipv6PrefixPDU struct {
@@ -245,7 +243,6 @@ type ipv6PrefixPDU struct {
 }
 
 func (p *ipv6PrefixPDU) serialize(wr io.Writer) {
-
 	pdu := struct {
 		version uint8
 		ptype   uint8
@@ -270,7 +267,6 @@ func (p *ipv6PrefixPDU) serialize(wr io.Writer) {
 		p.asn,
 	}
 	binary.Write(wr, binary.BigEndian, pdu)
-
 }
 
 type endOfDataPDU struct {
@@ -331,11 +327,9 @@ func (p *endOfDataPDU) serialize(wr io.Writer) {
 		p.expire,
 	}
 	binary.Write(wr, binary.BigEndian, pdu)
-
 }
 
-type cacheResetPDU struct {
-	/*
+type cacheResetPDU struct { /*
 		0          8          16         24        31
 		.-------------------------------------------.
 		| Protocol |   PDU    |                     |
@@ -414,5 +408,4 @@ func (p *errorReportPDU) serialize(wr io.Writer) {
 	binary.Write(wr, binary.BigEndian, uint32(0))
 	binary.Write(wr, binary.BigEndian, reportLength)
 	binary.Write(wr, binary.BigEndian, p.report)
-
 }
