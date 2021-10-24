@@ -11,16 +11,6 @@ import (
 	"inet.af/netaddr"
 )
 
-// The Cloudflare JSON prepends AS to all numbers. Will remove that here.
-func jsonAsnToInt(a string) int {
-	n, err := strconv.Atoi(a[2:])
-	if err != nil {
-		log.Printf("Unable to convert ASN %s to int", a)
-		return 0
-	}
-	return n
-}
-
 // makeDiff will return a list of ROAs that need to be deleted or updated
 // in order for a particular serial version to updated to the latest version.
 func makeDiff(new, old []roa, serial uint32) serialDiff {
@@ -208,7 +198,8 @@ func GetSetOfValidatedROAs(roas []roa) []roa {
 // https://datatracker.ietf.org/doc/html/rfc6482#section-3.3
 func (roa *roa) isValid() bool {
 	// MaxLength cannot be zero or negative
-	if roa.MaxMask <= 0 {
+	// MaxMask is a uint8 so cannot be negative
+	if roa.MaxMask == 0 {
 		log.Printf("maxmask <= 0: %#v\n", roa)
 		return false
 	}
@@ -220,16 +211,12 @@ func (roa *roa) isValid() bool {
 	}
 
 	// MaxLength cannot be larger than the max allowed for that address family
-	if roa.Prefix.IP().Is4() {
-		if roa.MaxMask > 32 {
-			log.Printf("maxmask > max: %#v\n", roa)
-			return false
-		}
-	} else {
-		if roa.MaxMask > 128 {
-			log.Printf("maxmask > max: %#v\n", roa)
-			return false
-		}
+	if roa.Prefix.IP().Is4() && roa.MaxMask > 32 {
+		log.Printf("maxmask > max: %#v\n", roa)
+		return false
+	} else if roa.MaxMask > 128 {
+		log.Printf("maxmask > max: %#v\n", roa)
+		return false
 	}
 
 	return true
