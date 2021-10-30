@@ -32,13 +32,9 @@ const (
 	refreshROA = 6 * time.Minute
 
 	// Intervals are the default intervals in seconds if no specific value is configured
-	refresh = uint32(3600) // 1 - 86400
-	retry   = uint32(600)  // 1 - 7200
-	expire  = uint32(7200) // 600 - 172800
-
-	// maxMinMask is the largest min mask wanted
-	maxMinMaskv4 = 24
-	maxMinMaskv6 = 48
+	RefreshInterval = uint32(3600) // 1 - 86400
+	RetryInterval   = uint32(600)  // 1 - 7200
+	ExpireInterval  = uint32(7200) // 600 - 172800
 )
 
 // Converted ROA struct with all the details.
@@ -136,7 +132,7 @@ func run() error {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	// We need our initial set of ROAs.
-	roas, err := readROAs(one, two)
+	roas, err := readROAs([]string{one, two})
 	init := time.Now() // Use this value to save time of first roa update.
 	if err != nil {
 		return fmt.Errorf("Unable to download ROAs, aborting: %w", err)
@@ -201,6 +197,18 @@ func (s *CacheServer) status() {
 		log.Printf("Current serial number is %d\n", s.serial)
 		log.Printf("Last diff is %t\n", s.diff.diff)
 		log.Printf("Current size of diff is %d\n", len(s.diff.addRoa)+len(s.diff.delRoa))
+		if len(s.diff.addRoa) > 0 {
+			log.Printf("ROAs to be added:")
+			for _, v := range s.diff.addRoa {
+				log.Printf("%s Mask %d ASN %d", v.Prefix.IPNet().String(), v.Prefix.Bits(), v.ASN)
+			}
+		}
+		if len(s.diff.delRoa) > 0 {
+			log.Printf("ROAs to be deleted:")
+			for _, v := range s.diff.delRoa {
+				log.Printf("%s Mask %d ASN %d", v.Prefix.IPNet().String(), v.Prefix.Bits(), v.ASN)
+			}
+		}
 		log.Printf("There are %d ROAs\n", len(s.roas))
 		log.Printf("There are %d IPv4 ROAs and %d IPv6 ROAs\n", v4, v6)
 		if !s.updates.lastCheck.IsZero() {
@@ -229,10 +237,11 @@ func (s *CacheServer) start() {
 		conn, err := s.listener.Accept()
 		if err != nil {
 			log.Printf("%v\n", err)
-		} else {
-			client := s.accept(conn)
-			go s.handleClient(client)
+			continue
 		}
+
+		client := s.accept(conn)
+		go s.handleClient(client)
 	}
 }
 
@@ -281,7 +290,7 @@ func (s *CacheServer) updateROAs() {
 		time.Sleep(refreshROA)
 		s.mutex.Lock()
 		s.updates.lastCheck = time.Now()
-		roas, err := readROAs(s.one, s.two)
+		roas, err := readROAs([]string{s.one, s.two})
 		if err != nil {
 			log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
 			s.updates.lastError = time.Now()

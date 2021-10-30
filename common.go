@@ -11,6 +11,20 @@ import (
 	"inet.af/netaddr"
 )
 
+type jsonroa struct {
+	Prefix string      `json:"prefix"`
+	Mask   uint8       `json:"maxLength"`
+	ASN    interface{} `json:"asn"`
+}
+
+type roas struct {
+	Roas []jsonroa `json:"roas"`
+}
+
+type rpkiResponse struct {
+	roas
+}
+
 // makeDiff will return a list of ROAs that need to be deleted or updated
 // in order for a particular serial version to updated to the latest version.
 func makeDiff(new, old []roa, serial uint32) serialDiff {
@@ -56,27 +70,27 @@ func roasToMap(roas []roa) map[string]roa {
 	return rm
 }
 
-func readROAs(one, two string) ([]roa, error) {
-	first, err := getIntJSON(one)
-	if err != nil {
-		return nil, err
+func readROAs(urls []string) ([]roa, error) {
+	var roas []roa
+	for _, url := range urls {
+		newroas, err := fetchAndDecodeJSON(url)
+		if err != nil {
+			return nil, err
+		}
+		roas = append(roas, newroas...)
+
 	}
-	second, err := getStringJSON(two)
-	if err != nil {
-		return nil, err
-	}
 
-	first = append(first, second...)
-	roas := GetSetOfValidatedROAs(first)
+	validROAs := GetSetOfValidatedROAs(roas)
 
-	log.Printf("Created a unique set of %d ROAs\n", len(roas))
+	log.Printf("Created a unique set of %d ROAs\n", len(validROAs))
 
-	return roas, nil
+	return validROAs, nil
 }
 
-// readROAs will fetch the latest set of ROAs and add to a local struct
+// fetchAndDecodeJSON will fetch the latest set of ROAs and add to a local struct
 // https://console.rpki-client.org/vrps.json
-func getIntJSON(url string) ([]roa, error) {
+func fetchAndDecodeJSON(url string) ([]roa, error) {
 	log.Printf("Downloading from %s\n", url)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -87,20 +101,6 @@ func getIntJSON(url string) ([]roa, error) {
 	f, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read body of response: %w", err)
-	}
-
-	// jsonroa is a struct to push the ROA data into.
-	type jsonroa struct {
-		Prefix string `json:"prefix"`
-		Mask   uint8  `json:"maxLength"`
-		ASN    uint32 `json:"asn"`
-	}
-
-	type roas struct {
-		Roas []jsonroa `json:"roas"`
-	}
-	type rpkiResponse struct {
-		roas
 	}
 
 	var r rpkiResponse
@@ -116,10 +116,11 @@ func getIntJSON(url string) ([]roa, error) {
 		if err != nil {
 			return nil, err
 		}
+		asn := decodeASN(r)
 		newROAs = append(newROAs, roa{
 			Prefix:  prefix,
 			MaxMask: r.Mask,
-			ASN:     r.ASN,
+			ASN:     asn,
 		})
 	}
 
@@ -128,55 +129,14 @@ func getIntJSON(url string) ([]roa, error) {
 	return newROAs, nil
 }
 
-func getStringJSON(url string) ([]roa, error) {
-	log.Printf("Downloading from %s\n", url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve ROAs from url: %w", err)
+func decodeASN(data jsonroa) uint32 {
+	switch atype := data.ASN.(type) {
+	case string:
+		return asnToUint32(atype)
+	case float64:
+		return uint32(atype)
 	}
-	defer resp.Body.Close()
-
-	f, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read body of response: %w", err)
-	}
-
-	// jsonroa is a struct to push the ROA data into.
-	type jsonroa struct {
-		Prefix string `json:"prefix"`
-		Mask   uint8  `json:"maxLength"`
-		ASN    string `json:"asn"`
-	}
-
-	type roas struct {
-		Roas []jsonroa `json:"roas"`
-	}
-	type rpkiResponse struct {
-		roas
-	}
-
-	var r rpkiResponse
-	if err = json.Unmarshal(f, &r); err != nil {
-		return nil, err
-	}
-
-	// We know how many ROAs we have, so we can add that capacity directly
-	newROAs := make([]roa, 0, len(r.roas.Roas))
-
-	for _, r := range r.roas.Roas {
-		prefix, err := netaddr.ParseIPPrefix(r.Prefix)
-		if err != nil {
-			return nil, err
-		}
-		newROAs = append(newROAs, roa{
-			Prefix:  prefix,
-			MaxMask: r.Mask,
-			ASN:     asnToUint32(r.ASN),
-		})
-	}
-
-	log.Printf("Returning %d ROAs from %s\n", len(newROAs), url)
-	return newROAs, nil
+	return 0
 }
 
 // GetSetOfValidatedROAs returns a slice of ROAs with no duplicates.

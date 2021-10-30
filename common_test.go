@@ -1,7 +1,11 @@
 package main
 
 import (
+	"net/http"
+	"os"
+	"reflect"
 	"testing"
+	"time"
 
 	"inet.af/netaddr"
 )
@@ -331,4 +335,110 @@ func diffIsEqual(first, second serialDiff) bool {
 		}
 	}
 	return true
+}
+
+func stringHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := os.ReadFile("data/string.json")
+	if err != nil {
+		panic(err)
+	}
+	w.Write(data)
+}
+
+func intHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := os.ReadFile("data/int.json")
+	if err != nil {
+		panic(err)
+	}
+	w.Write(data)
+}
+
+func TestReadROAs(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/string", stringHandler)
+	mux.HandleFunc("/int", intHandler)
+	go http.ListenAndServe(":8181", mux)
+	time.Sleep(1 * time.Second)
+
+	tests := []struct {
+		desc     string
+		one, two string
+		want     []roa
+		wantErr  bool
+	}{
+		{
+			desc: "first",
+			one:  "http://127.0.0.1:8181/int",
+			two:  "http://127.0.0.1:8181/string",
+			want: []roa{
+				{
+					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/24"),
+					MaxMask: 24,
+					ASN:     13335,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/24"),
+					MaxMask: 24,
+					ASN:     38803,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/22"),
+					MaxMask: 22,
+					ASN:     38803,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("1.0.5.0/24"),
+					MaxMask: 24,
+					ASN:     38803,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("2c0f:ffb8::/32"),
+					MaxMask: 32,
+					ASN:     3721,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("2c0f:ffe8::/32"),
+					MaxMask: 32,
+					ASN:     37443,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("2001:678:cdc::/48"),
+					MaxMask: 128,
+					ASN:     333333,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/22"),
+					MaxMask: 23,
+					ASN:     38803,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("2001:678:cdc::/48"),
+					MaxMask: 128,
+					ASN:     210660,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("50.128.0.0/9"),
+					MaxMask: 9,
+					ASN:     7922,
+				},
+				{
+					Prefix:  netaddr.MustParseIPPrefix("73.0.0.0/8"),
+					MaxMask: 8,
+					ASN:     7922,
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := readROAs([]string{"http://127.0.0.1:8181/int", "http://127.0.0.1:8181/string"})
+			if err != nil {
+				panic(err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("Got (%v), Wanted (%v)", got, tc.want)
+			}
+		})
+	}
 }

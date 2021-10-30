@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "generated": 1634865543,
+    "generatedTime": "2021-10-22T01:19:03Z"
+  },
+  "roas": [
+    {
+      "asn": "AS13335",
+      "prefix": "1.0.0.0/24",
+      "maxLength": 24,
+      "ta": "apnic"
+    },
+    {
+      "asn": "AS38803",
+      "prefix": "1.0.4.0/24",
+      "maxLength": 24,
+      "ta": "apnic"
+    },
+    {
+      "asn": "AS38803",
+      "prefix": "1.0.4.0/22",
+      "maxLength": 23,
+      "ta": "apnic"
+    },
+    {
+      "asn": "AS1234",
+      "prefix": "1.0.4.0/21",
+      "maxLength": 33,
+      "ta": "ripe"
+    },
+    {
+      "asn": "AS49697",
+      "prefix": "2001:678:97c::/48",
+      "maxLength": 129,
+      "ta": "ripe"
+    },
+    {
+      "asn": "AS49697",
+      "prefix": "2001:678:a00::/48",
+      "maxLength": 47,
+      "ta": "ripe"
+    },
+    {
+      "asn": "AS208391",
+      "prefix": "2001:678:aec::/48",
+      "maxLength": 0,
+      "ta": "ripe"
+    },
+    {
+      "asn": "AS210660",
+      "prefix": "2001:678:cdc::/48",
+      "maxLength": 128,
+      "ta": "ripe"
+    },
+    { "asn": "AS7922", "prefix": "50.128.0.0/9", "maxLength": 9, "ta": "arin" },
+    { "asn": "AS7922", "prefix": "73.0.0.0/8", "maxLength": 8, "ta": "arin" }
+  ]
+}

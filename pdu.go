@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"log"
 )
@@ -408,4 +409,64 @@ func (p *errorReportPDU) serialize(wr io.Writer) {
 	binary.Write(wr, binary.BigEndian, uint32(0))
 	binary.Write(wr, binary.BigEndian, reportLength)
 	binary.Write(wr, binary.BigEndian, p.report)
+}
+
+func getSerialQueryPDU(pdu []byte) serialQueryPDU {
+	var q serialQueryPDU
+	q.Session = binary.BigEndian.Uint16(pdu[:2])
+	q.Length = binary.BigEndian.Uint32(pdu[2:6])
+	q.Serial = binary.BigEndian.Uint32(pdu[6:10])
+
+	return q
+}
+
+// getPDU will return a byte slice which contains a PDU.
+func getPDU(r io.Reader) ([]byte, error) {
+	/*
+		0          8          16         24        31
+		.-------------------------------------------.
+		| Protocol |   PDU    |                     |
+		| Version  |   Type   |     Session ID      |
+		+-------------------------------------------+
+		|                                           |
+		|                 Length                    |
+		|                                           |
+		`-------------------------------------------'
+	*/
+	buf := make([]byte, minPDULength)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, err
+	}
+
+	// Read the rest of the PDU, minus the header.
+	length := binary.BigEndian.Uint32(buf[4:8]) - 8
+	if length > 0 {
+		lr := io.LimitReader(r, int64(length))
+		data := make([]byte, length)
+		if _, err := io.ReadFull(lr, data); err != nil {
+			return nil, err
+		}
+		buf = append(buf, data...)
+	}
+	return buf, nil
+}
+
+// decodePDUHeader does a size and version check. Otherwise it returns just the header.
+func decodePDUHeader(pdu []byte) (headerPDU, error) {
+	var header headerPDU
+	if len(pdu) < headPDULength {
+		return header, fmt.Errorf("PDU headers have a minimin size of 2. PDU passed has length %d", len(pdu))
+	}
+	if int(pdu[0]) != 1 {
+		return header, fmt.Errorf("only version 1 is supported. PDU has version %d", int(pdu[0]))
+	}
+	header.Version = uint8(pdu[0])
+	header.Ptype = uint8(pdu[1])
+
+	// PDU types currently number from 0 to 10, excluding 5. Anything else is invalid.
+	if header.Ptype > 10 || header.Ptype == 5 {
+		return header, fmt.Errorf("unsupported pdu version received: %d", header.Ptype)
+	}
+
+	return header, nil
 }

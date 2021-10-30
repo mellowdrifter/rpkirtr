@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
-	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -27,28 +24,29 @@ func (c *client) sendReset() {
 	r.serialize(c.conn)
 }
 
-// sendDiff should send additions and deletions to the client.
-func (c *client) sendDiff(diff *serialDiff, session uint16) {
+// updateClient will check to see if there are diffs to send.
+// If so it'll send them, otherwise it'll just send an end of data PDU updating
+// the serial.
+func (c *client) updateClient(session uint16, serial uint32, sendDiff bool) {
 	cpdu := cacheResponsePDU{
 		sessionID: session,
 	}
 	cpdu.serialize(c.conn)
-	if diff.diff {
-		for _, roa := range diff.addRoa {
+
+	// diff will only be sent if there is an actual update to send
+	if sendDiff && c.diff.diff {
+		c.mutex.RLock()
+		for _, roa := range c.diff.addRoa {
 			writePrefixPDU(&roa, c.conn, announce)
 		}
-		for _, roa := range diff.delRoa {
+		for _, roa := range c.diff.delRoa {
 			writePrefixPDU(&roa, c.conn, withdraw)
 		}
+		c.mutex.RUnlock()
 		log.Println("Finished sending all diffs")
 	}
-	epdu := endOfDataPDU{
-		session: uint16(session),
-		serial:  *c.serial,
-		refresh: uint32(900),
-		retry:   uint32(30),
-		expire:  uint32(171999),
-	}
+
+	epdu := getEndOfDataPDU(session, *c.serial)
 	epdu.serialize(c.conn)
 }
 
@@ -76,6 +74,16 @@ func writePrefixPDU(r *roa, c net.Conn, flag uint8) {
 	}
 }
 
+func getEndOfDataPDU(session uint16, serial uint32) endOfDataPDU {
+	return endOfDataPDU{
+		session: session,
+		serial:  serial,
+		refresh: RefreshInterval,
+		retry:   RetryInterval,
+		expire:  ExpireInterval,
+	}
+}
+
 // Notify client that an update has taken place
 func (c *client) notify(serial uint32, session uint16) {
 	npdu := serialNotifyPDU{
@@ -83,22 +91,6 @@ func (c *client) notify(serial uint32, session uint16) {
 		Serial:  serial,
 	}
 	npdu.serialize(c.conn)
-}
-
-// sendEmpty sends an empty response if there is no update required.
-func (c *client) sendEmpty(session uint16) {
-	cpdu := cacheResponsePDU{
-		sessionID: session,
-	}
-	cpdu.serialize(c.conn)
-	epdu := endOfDataPDU{
-		session: uint16(session),
-		serial:  *c.serial,
-		refresh: uint32(900),
-		retry:   uint32(30),
-		expire:  uint32(171999),
-	}
-	epdu.serialize(c.conn)
 }
 
 func (c *client) sendRoa() {
@@ -117,9 +109,9 @@ func (c *client) sendRoa() {
 	epdu := endOfDataPDU{
 		session: uint16(session),
 		serial:  *c.serial,
-		refresh: refresh,
-		retry:   retry,
-		expire:  expire,
+		refresh: RefreshInterval,
+		retry:   RetryInterval,
+		expire:  ExpireInterval,
 	}
 	epdu.serialize(c.conn)
 }
@@ -142,7 +134,6 @@ func (s *CacheServer) handleClient(c *client) {
 	defer c.conn.Close()
 
 	for {
-
 		// What is the incoming PDU?
 		pdu, err := getPDU(c.conn)
 		if err != nil {
@@ -162,89 +153,29 @@ func (s *CacheServer) handleClient(c *client) {
 
 		case header.Ptype == serialQuery:
 			log.Printf("received a serial Query PDU from %s\n", c.addr)
-			q := getSerialQueryPDU(pdu[2:])
-			// If the client sends in the current or previous serial, then we can handle it.
-			// If the serial is older or unknown, we need to send a reset.
+			// TODO: Is 2 a magic number?
+			sq := getSerialQueryPDU(pdu[2:])
 			c.mutex.RLock()
 			serial := c.diff.newSerial
 			c.mutex.RUnlock()
-			if q.Serial != serial && q.Serial != serial-1 {
+
+			// If the client sends in the current or previous serial, then we can handle it.
+			// If the serial is older or unknown, we need to send a reset.
+			if sq.Serial != serial && sq.Serial != serial-1 {
 				log.Printf("received a serial query PDU, with an unmanagable serial from %s\n", c.addr)
-				log.Printf("Serial received: %d. Current server serial: %d\n", q.Serial, serial)
+				log.Printf("Serial received: %d. Current server serial: %d\n", sq.Serial, serial)
 				c.sendReset()
 			}
-			if q.Serial == serial {
+			if sq.Serial == serial {
 				log.Printf("received a serial number which currently matches my own from %s\n", c.addr)
-				log.Printf("Serial received: %d. Current server serial: %d\n", q.Serial, serial)
-				c.sendEmpty(q.Session)
+				log.Printf("Serial received: %d. Current server serial: %d\n", sq.Serial, serial)
+				c.updateClient(sq.Session, serial, false)
 			}
-			if q.Serial == serial-1 {
+			if sq.Serial == serial-1 {
 				log.Printf("received a serial number one less, so sending diff to %s\n", c.addr)
-				log.Printf("Serial received: %d. Current server serial: %d\n", q.Serial, serial)
-				c.mutex.RLock()
-				c.sendDiff(c.diff, q.Session)
-				c.mutex.RUnlock()
+				log.Printf("Serial received: %d. Current server serial: %d\n", sq.Serial, serial)
+				c.updateClient(sq.Session, serial, true)
 			}
 		}
 	}
-}
-
-func getSerialQueryPDU(pdu []byte) serialQueryPDU {
-	var q serialQueryPDU
-	q.Session = binary.BigEndian.Uint16(pdu[:2])
-	q.Length = binary.BigEndian.Uint32(pdu[2:6])
-	q.Serial = binary.BigEndian.Uint32(pdu[6:10])
-
-	return q
-}
-
-// getPDU will return a byte slice which contains a PDU.
-func getPDU(r io.Reader) ([]byte, error) {
-	/*
-		0          8          16         24        31
-		.-------------------------------------------.
-		| Protocol |   PDU    |                     |
-		| Version  |   Type   |     Session ID      |
-		+-------------------------------------------+
-		|                                           |
-		|                 Length                    |
-		|                                           |
-		`-------------------------------------------'
-	*/
-	buf := make([]byte, minPDULength)
-	if _, err := io.ReadFull(r, buf); err != nil {
-		return nil, err
-	}
-
-	// Read the rest of the PDU, minus the header.
-	length := binary.BigEndian.Uint32(buf[4:8]) - 8
-	if length > 0 {
-		lr := io.LimitReader(r, int64(length))
-		data := make([]byte, length)
-		if _, err := io.ReadFull(lr, data); err != nil {
-			return nil, err
-		}
-		buf = append(buf, data...)
-	}
-	return buf, nil
-}
-
-// decodePDUHeader does a size and version check. Otherwise it returns just the header.
-func decodePDUHeader(pdu []byte) (headerPDU, error) {
-	var header headerPDU
-	if len(pdu) < headPDULength {
-		return header, fmt.Errorf("PDU headers have a minimin size of 2. PDU passed has length %d", len(pdu))
-	}
-	if int(pdu[0]) != 1 {
-		return header, fmt.Errorf("only version 1 is supported. PDU has version %d", int(pdu[0]))
-	}
-	header.Version = uint8(pdu[0])
-	header.Ptype = uint8(pdu[1])
-
-	// PDU types currently number from 0 to 10, excluding 5. Anything else is invalid.
-	if header.Ptype > 10 || header.Ptype == 5 {
-		return header, fmt.Errorf("unsupported pdu version received: %d", header.Ptype)
-	}
-
-	return header, nil
 }

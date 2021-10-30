@@ -1,9 +1,6 @@
-rpkirtr
-out.trace
-config.ini
-config.ini
 data/cloudflare.json
 data/rarc.json
 data/vrps.json
 go.sum
 go.sum
+config.ini

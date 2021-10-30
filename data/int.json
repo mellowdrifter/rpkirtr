@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "buildtime": "2021-10-21T23:33:14Z",
+    "elapsedtime": "252",
+    "usertime": "184",
+    "systemtime": "89",
+    "roas": 94283,
+    "failedroas": 4,
+    "invalidroas": 1,
+    "certificates": 27573,
+    "failcertificates": 0,
+    "invalidcertificates": 0,
+    "tals": 5,
+    "repositories": 27393,
+    "vrps": 290495,
+    "uniquevrps": 285596
+  },
+
+  "roas": [
+    {
+      "asn": 13335,
+      "prefix": "1.0.0.0/24",
+      "maxLength": 24,
+      "ta": "apnic",
+      "expires": 1634998714
+    },
+    {
+      "asn": 38803,
+      "prefix": "1.0.4.0/24",
+      "maxLength": 24,
+      "ta": "apnic",
+      "expires": 1634992687
+    },
+    {
+      "asn": 38803,
+      "prefix": "1.0.4.0/22",
+      "maxLength": 22,
+      "ta": "apnic",
+      "expires": 1634992687
+    },
+    {
+      "asn": 38803,
+      "prefix": "1.0.5.0/24",
+      "maxLength": 24,
+      "ta": "apnic",
+      "expires": 1634992687
+    },
+    {
+      "asn": 37211,
+      "prefix": "2c0f:ffb8::/32",
+      "maxLength": 32,
+      "ta": "afrinic",
+      "expires": 1634951748
+    },
+    {
+      "asn": 37443,
+      "prefix": "2c0f:ffe8::/32",
+      "maxLength": 32,
+      "ta": "afrinic",
+      "expires": 1634953218
+    },
+    {
+      "asn": 333333,
+      "prefix": "2001:678:cdc::/48",
+      "maxLength": 128,
+      "ta": "ripe"
+    }
+  ],
+
+  "bgpsec_keys": []
+}
