@@ -1,7 +1,3 @@
-data/cloudflare.json
-data/rarc.json
-data/vrps.json
 go.sum
-go.sum
-config.ini
 rpkirtr
+.vscode/launch.json
