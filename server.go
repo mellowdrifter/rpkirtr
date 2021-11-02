@@ -5,12 +5,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,7 +56,7 @@ type CacheServer struct {
 	session  uint16
 	diff     serialDiff
 	updates  checkErrorUpdate
-	one, two string
+	urls     []string
 }
 
 // checkErrorUpdate will let us know timings of ROA updates.
@@ -114,8 +116,9 @@ func run() error {
 	}
 
 	// grab URLs
-	one := cf.Section("rpkirtr").Key("intjson").String()
-	two := cf.Section("rpkirtr").Key("stringjson").String()
+	jsons := flag.String("urls", "", "json locations of VRPs")
+	flag.Parse()
+	urls := strings.Split(*jsons, ",")
 
 	// set up logging
 	f, err := os.OpenFile(logf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
@@ -132,7 +135,7 @@ func run() error {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	// We need our initial set of ROAs.
-	roas, err := readROAs([]string{one, two})
+	roas, err := readROAs(urls)
 	init := time.Now() // Use this value to save time of first roa update.
 	if err != nil {
 		return fmt.Errorf("Unable to download ROAs, aborting: %w", err)
@@ -147,8 +150,7 @@ func run() error {
 		updates: checkErrorUpdate{
 			lastCheck: init,
 		},
-		one: one,
-		two: two,
+		urls: urls,
 	}
 
 	// keep ROAs updated.
@@ -290,7 +292,7 @@ func (s *CacheServer) updateROAs() {
 		time.Sleep(refreshROA)
 		s.mutex.Lock()
 		s.updates.lastCheck = time.Now()
-		roas, err := readROAs([]string{s.one, s.two})
+		roas, err := readROAs(s.urls)
 		if err != nil {
 			log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
 			s.updates.lastError = time.Now()
