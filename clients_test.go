@@ -51,7 +51,7 @@ func TestGetPDU(t *testing.T) {
 		if err != nil && !v.wantErr {
 			t.Errorf("Error on %s. No error expected, but error received: %v", v.desc, err)
 		}
-		if bytes.Compare(got, v.pdu) != 0 {
+		if !bytes.Equal(got, v.pdu) {
 			t.Errorf("Error on %s. Got %d, Want %d\n", v.desc, got, v.pdu)
 		}
 	}

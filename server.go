@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -20,23 +21,14 @@ import (
 	"inet.af/netaddr"
 )
 
-type rir uint8
-
 const (
-	// Each region will just be an enum.
-	afrinic rir = 0
-	apnic   rir = 1
-	arin    rir = 2
-	lacnic  rir = 3
-	ripe    rir = 4
-
 	// refreshROA is the amount of seconds to wait until a new json is pulled.
 	refreshROA = 6 * time.Minute
 
 	// Intervals are the default intervals in seconds if no specific value is configured
-	RefreshInterval = uint32(3600) // 1 - 86400
-	RetryInterval   = uint32(600)  // 1 - 7200
-	ExpireInterval  = uint32(7200) // 600 - 172800
+	DefaultRefreshInterval = uint32(3600) // 1 - 86400
+	DefaultRetryInterval   = uint32(600)  // 1 - 7200
+	DefaultExpireInterval  = uint32(7200) // 600 - 172800
 )
 
 // Converted ROA struct with all the details.
@@ -86,19 +78,6 @@ func main() {
 
 // run will do the initial set up. Returns error to main.
 func run() error {
-	/*tr, err := os.Create("/tmp/out.trace")
-	if err != nil {
-		panic(err)
-	}
-	defer tr.Close()
-
-	err = trace.Start(tr)
-	if err != nil {
-		panic(err)
-	}
-	defer trace.Stop()
-	*/
-
 	// load in config
 	exe, err := os.Executable()
 	if err != nil {
@@ -112,7 +91,7 @@ func run() error {
 	logf := cf.Section("rpkirtr").Key("log").String()
 	port, err := cf.Section("rpkirtr").Key("port").Int64()
 	if err != nil {
-		return fmt.Errorf("Port set needs to be a number: %v", err)
+		return fmt.Errorf("port set needs to be a number: %v", err)
 	}
 
 	// grab URLs
@@ -138,7 +117,7 @@ func run() error {
 	roas, err := readROAs(urls)
 	init := time.Now() // Use this value to save time of first roa update.
 	if err != nil {
-		return fmt.Errorf("Unable to download ROAs, aborting: %w", err)
+		return fmt.Errorf("unable to download ROAs, aborting: %w", err)
 	}
 	log.Println("Initial roa set downloaded")
 
@@ -222,10 +201,21 @@ func (s *CacheServer) status() {
 		if !s.updates.lastUpdate.IsZero() {
 			log.Printf("Last ROA change was %v\n", s.updates.lastUpdate.Format("2006-01-02 15:04:05"))
 		}
+
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		log.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+		log.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+		log.Printf("\tSys = %v MiB", bToMb(m.Sys))
+		log.Printf("\tNumGC = %v\n", m.NumGC)
 		log.Println("*** eom ***")
 		s.mutex.RUnlock()
 		time.Sleep(refreshROA)
 	}
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }
 
 // close off the listener if existing
@@ -297,7 +287,7 @@ func (s *CacheServer) updateROAs() {
 			log.Printf("Unable to update ROAs, so keeping existing ROAs for now: %v\n", err)
 			s.updates.lastError = time.Now()
 			s.mutex.Unlock()
-			return
+			continue
 		}
 
 		// Calculate diffs

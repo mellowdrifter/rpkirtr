@@ -9,13 +9,12 @@ import (
 
 // Each client has their own stuff
 type client struct {
-	conn    net.Conn
-	session *uint16
-	addr    string
-	roas    *[]roa
-	serial  *uint32
-	mutex   *sync.RWMutex
-	diff    *serialDiff
+	conn   net.Conn
+	addr   string
+	roas   *[]roa
+	serial *uint32
+	mutex  *sync.RWMutex
+	diff   *serialDiff
 }
 
 // reset has no data besides the header
@@ -78,9 +77,9 @@ func getEndOfDataPDU(session uint16, serial uint32) endOfDataPDU {
 	return endOfDataPDU{
 		session: session,
 		serial:  serial,
-		refresh: RefreshInterval,
-		retry:   RetryInterval,
-		expire:  ExpireInterval,
+		refresh: DefaultRefreshInterval,
+		retry:   DefaultRetryInterval,
+		expire:  DefaultExpireInterval,
 	}
 }
 
@@ -106,12 +105,13 @@ func (c *client) sendRoa() {
 	}
 	c.mutex.RUnlock()
 	log.Println("Finished sending all prefixes")
+	// TODO: Why am I sending default timers here? Should I save this per client?
 	epdu := endOfDataPDU{
 		session: uint16(session),
 		serial:  *c.serial,
-		refresh: RefreshInterval,
-		retry:   RetryInterval,
-		expire:  ExpireInterval,
+		refresh: DefaultRefreshInterval,
+		retry:   DefaultRetryInterval,
+		expire:  DefaultExpireInterval,
 	}
 	epdu.serialize(c.conn)
 }
