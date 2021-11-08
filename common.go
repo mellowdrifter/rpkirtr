@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"inet.af/netaddr"
 )
@@ -72,13 +73,18 @@ func roasToMap(roas []roa) map[string]roa {
 
 func readROAs(urls []string) ([]roa, error) {
 	var roas []roa
-	for _, url := range urls {
-		newroas, err := fetchAndDecodeJSON(url)
-		if err != nil {
-			return nil, err
-		}
-		roas = append(roas, newroas...)
 
+	// Will this blend?
+	ch := make(chan []roa, len(urls))
+	var wg sync.WaitGroup
+	for _, url := range urls {
+		wg.Add(1)
+		go fetchAndDecodeJSON(url, ch, &wg)
+	}
+	wg.Wait()
+	close(ch)
+	for v := range ch {
+		roas = append(roas, v...)
 	}
 
 	validROAs := GetSetOfValidatedROAs(roas)
@@ -90,7 +96,7 @@ func readROAs(urls []string) ([]roa, error) {
 
 // fetchAndDecodeJSON will fetch the latest set of ROAs and add to a local struct
 // https://console.rpki-client.org/vrps.json
-func fetchAndDecodeJSON(url string) ([]roa, error) {
+/*func fetchAndDecodeJSON(url string, ch chan []roa) ([]roa, error) {
 	log.Printf("Downloading from %s\n", url)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -127,6 +133,51 @@ func fetchAndDecodeJSON(url string) ([]roa, error) {
 	log.Printf("Returning %d ROAs from %s\n", len(newROAs), url)
 
 	return newROAs, nil
+}*/
+
+func fetchAndDecodeJSON(url string, ch chan []roa, wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Printf("Downloading from %s\n", url)
+	var roas []roa
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf("unable to retrieve ROAs from url: %v", err)
+		ch <- roas
+	}
+	defer resp.Body.Close()
+
+	f, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("unable to read body of response: %v", err)
+		ch <- roas
+	}
+
+	var r rpkiResponse
+	if err = json.Unmarshal(f, &r); err != nil {
+		log.Printf("unable to unmarshal: %v", err)
+		ch <- roas
+	}
+
+	// We know how many ROAs we have, so we can add that capacity directly
+	newROAs := make([]roa, 0, len(r.roas.Roas))
+
+	for _, r := range r.roas.Roas {
+		prefix, err := netaddr.ParseIPPrefix(r.Prefix)
+		if err != nil {
+			log.Printf("%v", err)
+			ch <- newROAs
+		}
+		asn := decodeASN(r)
+		newROAs = append(newROAs, roa{
+			Prefix:  prefix,
+			MaxMask: r.Mask,
+			ASN:     asn,
+		})
+	}
+
+	ch <- newROAs
+
+	log.Printf("Returning %d ROAs from %s\n", len(newROAs), url)
 }
 
 func decodeASN(data jsonroa) uint32 {
