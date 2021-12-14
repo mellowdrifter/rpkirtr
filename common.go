@@ -13,9 +13,9 @@ import (
 )
 
 type jsonroa struct {
-	Prefix string      `json:"prefix"`
-	Mask   uint8       `json:"maxLength"`
-	ASN    interface{} `json:"asn"`
+	Prefix string `json:"prefix"`
+	Mask   uint8  `json:"maxLength"`
+	ASN    any    `json:"asn"`
 }
 
 type roas struct {
@@ -96,66 +96,26 @@ func readROAs(urls []string) ([]roa, error) {
 
 // fetchAndDecodeJSON will fetch the latest set of ROAs and add to a local struct
 // https://console.rpki-client.org/vrps.json
-/*func fetchAndDecodeJSON(url string, ch chan []roa) ([]roa, error) {
-	log.Printf("Downloading from %s\n", url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve ROAs from url: %w", err)
-	}
-	defer resp.Body.Close()
-
-	f, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read body of response: %w", err)
-	}
-
-	var r rpkiResponse
-	if err = json.Unmarshal(f, &r); err != nil {
-		return nil, err
-	}
-
-	// We know how many ROAs we have, so we can add that capacity directly
-	newROAs := make([]roa, 0, len(r.roas.Roas))
-
-	for _, r := range r.roas.Roas {
-		prefix, err := netaddr.ParseIPPrefix(r.Prefix)
-		if err != nil {
-			return nil, err
-		}
-		asn := decodeASN(r)
-		newROAs = append(newROAs, roa{
-			Prefix:  prefix,
-			MaxMask: r.Mask,
-			ASN:     asn,
-		})
-	}
-
-	log.Printf("Returning %d ROAs from %s\n", len(newROAs), url)
-
-	return newROAs, nil
-}*/
-
 func fetchAndDecodeJSON(url string, ch chan []roa, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Printf("Downloading from %s\n", url)
-	var roas []roa
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Printf("unable to retrieve ROAs from url: %v", err)
-		ch <- roas
+		return
 	}
 	defer resp.Body.Close()
 
 	f, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("unable to read body of response: %v", err)
-		ch <- roas
+		return
 	}
 
 	var r rpkiResponse
 	if err = json.Unmarshal(f, &r); err != nil {
 		log.Printf("unable to unmarshal: %v", err)
-		ch <- roas
+		return
 	}
 
 	// We know how many ROAs we have, so we can add that capacity directly
