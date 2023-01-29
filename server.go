@@ -150,16 +150,16 @@ func run() error {
 func (s *CacheServer) listen(port int64) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		log.Fatalf("Unable to start server: %v", err)
+		panic(err)
 	}
 	s.listener = l
-	log.Printf("Listening on port %d\n", port)
+	log.Printf("Server started on port %d\n", port)
 }
 
 // Log current ROA status
 func (s *CacheServer) status(ch chan bool) {
 	for {
-		// Only excecute once a message ove rthe channel is received
+		// Only excecute once a message over the channel is received
 		<-ch
 		log.Println("received true over the channel")
 
