@@ -168,6 +168,7 @@ func (s *CacheServer) status(ch chan bool) {
 		var v4, v6 int
 		for _, r := range s.roas {
 			if r.Prefix.Addr().Is4() {
+				v4++
 			} else {
 				v6++
 			}
