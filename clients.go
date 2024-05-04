@@ -51,22 +51,22 @@ func (c *client) updateClient(session uint16, serial uint32, sendDiff bool) {
 
 // writePrefixPDU will directly write the update or withdraw prefix PDU.
 func writePrefixPDU(r *roa, c net.Conn, flag uint8) {
-	switch r.Prefix.IP().Is4() {
+	switch r.Prefix.Addr().Is4() {
 	case true:
 		ppdu := ipv4PrefixPDU{
 			flags:  flag,
-			min:    r.Prefix.Bits(),
+			min:    uint8(r.Prefix.Bits()),
 			max:    r.MaxMask,
-			prefix: r.Prefix.IP().As4(),
+			prefix: r.Prefix.Addr().As4(),
 			asn:    r.ASN,
 		}
 		ppdu.serialize(c)
 	case false:
 		ppdu := ipv6PrefixPDU{
 			flags:  flag,
-			min:    r.Prefix.Bits(),
+			min:    uint8(r.Prefix.Bits()),
 			max:    r.MaxMask,
-			prefix: r.Prefix.IP().As16(),
+			prefix: r.Prefix.Addr().As16(),
 			asn:    r.ASN,
 		}
 		ppdu.serialize(c)

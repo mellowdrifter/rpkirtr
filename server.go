@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"net/netip"
 	"os"
 	"path"
 	"runtime"
@@ -18,7 +19,6 @@ import (
 	"time"
 
 	"gopkg.in/ini.v1"
-	"inet.af/netaddr"
 )
 
 const (
@@ -33,7 +33,7 @@ const (
 
 // Converted ROA struct with all the details.
 type roa struct {
-	Prefix  netaddr.IPPrefix
+	Prefix  netip.Prefix
 	MaxMask uint8
 	ASN     uint32
 }
@@ -167,8 +167,7 @@ func (s *CacheServer) status(ch chan bool) {
 		// Count how many ROAs we have.
 		var v4, v6 int
 		for _, r := range s.roas {
-			if r.Prefix.IP().Is4() {
-				v4++
+			if r.Prefix.Addr().Is4() {
 			} else {
 				v6++
 			}
@@ -185,13 +184,13 @@ func (s *CacheServer) status(ch chan bool) {
 		if len(s.diff.addRoa) > 0 {
 			log.Printf("ROAs to be added:")
 			for _, v := range s.diff.addRoa {
-				log.Printf("%s Mask %d ASN %d", v.Prefix.IPNet().String(), v.Prefix.Bits(), v.ASN)
+				log.Printf("%s Mask %d ASN %d", v.Prefix.Addr().String(), v.Prefix.Bits(), v.ASN)
 			}
 		}
 		if len(s.diff.delRoa) > 0 {
 			log.Printf("ROAs to be deleted:")
 			for _, v := range s.diff.delRoa {
-				log.Printf("%s Mask %d ASN %d", v.Prefix.IPNet().String(), v.Prefix.Bits(), v.ASN)
+				log.Printf("%s Mask %d ASN %d", v.Prefix.Addr().String(), v.Prefix.Bits(), v.ASN)
 			}
 		}
 		log.Printf("There are %d ROAs\n", len(s.roas))

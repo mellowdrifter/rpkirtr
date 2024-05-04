@@ -53,6 +53,6 @@
       "ta": "ripe"
     },
     { "asn": "AS7922", "prefix": "50.128.0.0/9", "maxLength": 9, "ta": "arin" },
-    { "asn": "AS7922", "prefix": "73.0.0.0/8", "maxLength": 8, "ta": "arin" }
+    { "asn": "AS7922", "prefix": "73.0.0.0/8", "maxLength": 9, "ta": "arin" }
   ]
 }

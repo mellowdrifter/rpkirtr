@@ -6,10 +6,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"sync"
-
-	"inet.af/netaddr"
 )
 
 type jsonroa struct {
@@ -66,15 +65,13 @@ func makeDiff(new, old []roa, serial uint32) serialDiff {
 func roasToMap(roas []roa) map[string]roa {
 	rm := make(map[string]roa, len(roas))
 	for _, roa := range roas {
-		rm[fmt.Sprintf("%s%d%d", roa.Prefix.IPNet().String(), roa.MaxMask, roa.ASN)] = roa
+		rm[fmt.Sprintf("%s%d%d", roa.Prefix.Addr().String(), roa.MaxMask, roa.ASN)] = roa
 	}
 	return rm
 }
 
 func readROAs(urls []string) ([]roa, error) {
 	var roas []roa
-
-	// Will this blend?
 	ch := make(chan []roa, len(urls))
 	var wg sync.WaitGroup
 	for _, url := range urls {
@@ -122,7 +119,7 @@ func fetchAndDecodeJSON(url string, ch chan []roa, wg *sync.WaitGroup) {
 	newROAs := make([]roa, 0, len(r.roas.Roas))
 
 	for _, r := range r.roas.Roas {
-		prefix, err := netaddr.ParseIPPrefix(r.Prefix)
+		prefix, err := netip.ParsePrefix(r.Prefix)
 		if err != nil {
 			log.Printf("%v", err)
 			ch <- newROAs
@@ -140,6 +137,7 @@ func fetchAndDecodeJSON(url string, ch chan []roa, wg *sync.WaitGroup) {
 	log.Printf("Returning %d ROAs from %s\n", len(newROAs), url)
 }
 
+// Some URLs have the AS Number as a number while others as a string.
 func decodeASN(data jsonroa) uint32 {
 	switch atype := data.ASN.(type) {
 	case string:
@@ -176,13 +174,13 @@ func (roa *roa) isValid() bool {
 	}
 
 	// MaxLength cannot be smaller than prefix length
-	if roa.MaxMask < roa.Prefix.Bits() {
+	if roa.MaxMask < uint8(roa.Prefix.Bits()) {
 		log.Printf("maxmask < mask: %#v\n", roa)
 		return false
 	}
 
 	// MaxLength cannot be larger than the max allowed for that address family
-	if roa.Prefix.IP().Is4() && roa.MaxMask > 32 {
+	if roa.Prefix.Addr().Is4() && roa.MaxMask > 32 {
 		log.Printf("maxmask > max: %#v\n", roa)
 		return false
 	} else if roa.MaxMask > 128 {
@@ -205,6 +203,7 @@ func stringToInt(s string) int {
 }
 
 // Some json VRPs contain ASXXX instead of just XXX as the ASN
+// TODO: Use a regex to remove letter instead of assuming its the first two
 func asnToUint32(a string) uint32 {
 	n, err := strconv.Atoi(a[2:])
 	if err != nil {

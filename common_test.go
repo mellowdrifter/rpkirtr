@@ -2,12 +2,11 @@ package main
 
 import (
 	"net/http"
+	"net/netip"
 	"os"
 	"reflect"
 	"testing"
 	"time"
-
-	"inet.af/netaddr"
 )
 
 func TestStringToInt(t *testing.T) {
@@ -84,14 +83,14 @@ func TestMakeDiff(t *testing.T) {
 			desc: "one ROA, no diff",
 			new: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
 			},
 			old: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
@@ -108,14 +107,14 @@ func TestMakeDiff(t *testing.T) {
 			desc: "Min mask change",
 			new: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/23"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/23"),
 					MaxMask: 32,
 					ASN:     123,
 				},
 			},
 			old: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
@@ -126,14 +125,14 @@ func TestMakeDiff(t *testing.T) {
 				newSerial: 2,
 				delRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 						MaxMask: 32,
 						ASN:     123,
 					},
 				},
 				addRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/23"),
+						Prefix:  netip.MustParsePrefix("192.168.1.1/23"),
 						MaxMask: 32,
 						ASN:     123,
 					},
@@ -144,14 +143,14 @@ func TestMakeDiff(t *testing.T) {
 			desc: "Max mask change",
 			new: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 31,
 					ASN:     123,
 				},
 			},
 			old: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
@@ -162,14 +161,14 @@ func TestMakeDiff(t *testing.T) {
 				newSerial: 2,
 				delRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 						MaxMask: 32,
 						ASN:     123,
 					},
 				},
 				addRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 						MaxMask: 31,
 						ASN:     123,
 					},
@@ -180,14 +179,14 @@ func TestMakeDiff(t *testing.T) {
 			desc: "ASN change",
 			new: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
 			},
 			old: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     1234,
 				},
@@ -198,14 +197,14 @@ func TestMakeDiff(t *testing.T) {
 				newSerial: 2,
 				delRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 						MaxMask: 32,
 						ASN:     1234,
 					},
 				},
 				addRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 						MaxMask: 32,
 						ASN:     123,
 					},
@@ -216,19 +215,19 @@ func TestMakeDiff(t *testing.T) {
 			desc: "Two ROAs to one",
 			new: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
 			},
 			old: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("2001:db8::/32"),
+					Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 					MaxMask: 48,
 					ASN:     123,
 				},
@@ -239,7 +238,7 @@ func TestMakeDiff(t *testing.T) {
 				newSerial: 2,
 				delRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("2001:db8::/32"),
+						Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 						MaxMask: 48,
 						ASN:     123,
 					},
@@ -251,19 +250,19 @@ func TestMakeDiff(t *testing.T) {
 			desc: "One ROA to two",
 			new: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("2001:db8::/32"),
+					Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 					MaxMask: 48,
 					ASN:     123,
 				},
 			},
 			old: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("192.168.1.1/24"),
+					Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
 					MaxMask: 32,
 					ASN:     123,
 				},
@@ -275,7 +274,7 @@ func TestMakeDiff(t *testing.T) {
 				delRoa:    nil,
 				addRoa: []roa{
 					{
-						Prefix:  netaddr.MustParseIPPrefix("2001:db8::/32"),
+						Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 						MaxMask: 48,
 						ASN:     123,
 					},
@@ -362,69 +361,79 @@ func TestReadROAs(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	tests := []struct {
-		desc     string
-		one, two string
-		want     []roa
-		wantErr  bool
+		desc                string
+		one, two            string
+		wantInt, wantString []roa
+		wantErr             bool
 	}{
 		{
 			desc: "first",
-			one:  "http://127.0.0.1:8181/int",
-			two:  "http://127.0.0.1:8181/string",
-			want: []roa{
+			wantInt: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/24"),
+					Prefix:  netip.MustParsePrefix("1.0.0.0/24"),
 					MaxMask: 24,
 					ASN:     13335,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/24"),
+					Prefix:  netip.MustParsePrefix("1.0.4.0/24"),
 					MaxMask: 24,
 					ASN:     38803,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/22"),
+					Prefix:  netip.MustParsePrefix("1.0.4.0/22"),
 					MaxMask: 22,
 					ASN:     38803,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("1.0.5.0/24"),
+					Prefix:  netip.MustParsePrefix("1.0.5.0/24"),
 					MaxMask: 24,
 					ASN:     38803,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("2c0f:ffb8::/32"),
+					Prefix:  netip.MustParsePrefix("2c0f:ffb8::/32"),
 					MaxMask: 32,
-					ASN:     3721,
+					ASN:     37211,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("2c0f:ffe8::/32"),
+					Prefix:  netip.MustParsePrefix("2c0f:ffe8::/32"),
 					MaxMask: 32,
 					ASN:     37443,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("2001:678:cdc::/48"),
+					Prefix:  netip.MustParsePrefix("2001:678:cdc::/48"),
 					MaxMask: 128,
 					ASN:     333333,
 				},
+			},
+			wantString: []roa{
 				{
-					Prefix:  netaddr.MustParseIPPrefix("1.0.0.0/22"),
+					Prefix:  netip.MustParsePrefix("1.0.0.0/24"),
+					MaxMask: 24,
+					ASN:     13335,
+				},
+				{
+					Prefix:  netip.MustParsePrefix("1.0.4.0/24"),
+					MaxMask: 24,
+					ASN:     38803,
+				},
+				{
+					Prefix:  netip.MustParsePrefix("1.0.4.0/22"),
 					MaxMask: 23,
 					ASN:     38803,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("2001:678:cdc::/48"),
+					Prefix:  netip.MustParsePrefix("2001:678:cdc::/48"),
 					MaxMask: 128,
 					ASN:     210660,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("50.128.0.0/9"),
+					Prefix:  netip.MustParsePrefix("50.128.0.0/9"),
 					MaxMask: 9,
 					ASN:     7922,
 				},
 				{
-					Prefix:  netaddr.MustParseIPPrefix("73.0.0.0/8"),
-					MaxMask: 8,
+					Prefix:  netip.MustParsePrefix("73.0.0.0/8"),
+					MaxMask: 9,
 					ASN:     7922,
 				},
 			},
@@ -432,12 +441,19 @@ func TestReadROAs(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			got, err := readROAs([]string{"http://127.0.0.1:8181/int", "http://127.0.0.1:8181/string"})
+			got, err := readROAs([]string{"http://127.0.0.1:8181/int"})
 			if err != nil {
 				panic(err)
 			}
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("Got (%v), Wanted (%v)", got, tc.want)
+			if !reflect.DeepEqual(got, tc.wantInt) {
+				t.Errorf("Got (%v), Wanted (%v) on int", got, tc.wantInt)
+			}
+			got, err = readROAs([]string{"http://127.0.0.1:8181/string"})
+			if err != nil {
+				panic(err)
+			}
+			if !reflect.DeepEqual(got, tc.wantString) {
+				t.Errorf("Got (%v), Wanted (%v) on string", got, tc.wantString)
 			}
 		})
 	}
