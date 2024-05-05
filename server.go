@@ -8,7 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"os"
@@ -110,9 +110,6 @@ func run() error {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetOutput(f)
 
-	// random seed used for session ID
-	rand.Seed(time.Now().UTC().UnixNano())
-
 	// We need our initial set of ROAs.
 	roas, err := readROAs(urls)
 	init := time.Now() // Use this value to save time of first roa update.
@@ -124,7 +121,7 @@ func run() error {
 	// Set up our server with it's initial data.
 	rpki := CacheServer{
 		mutex:   &sync.RWMutex{},
-		session: uint16(rand.Intn(65535)),
+		session: uint16(rand.IntN(65535)),
 		roas:    roas,
 		updates: checkErrorUpdate{
 			lastCheck: init,

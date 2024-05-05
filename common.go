@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/netip"
+	"slices"
 	"strconv"
 	"sync"
 )
@@ -30,22 +30,17 @@ type rpkiResponse struct {
 func makeDiff(new, old []roa, serial uint32) serialDiff {
 	var addROA, delROA []roa
 
-	newm := roasToMap(new)
-	oldm := roasToMap(old)
-
 	// If ROA is in newMap but not oldMap, we need to add it
-	for k, v := range newm {
-		_, ok := oldm[k]
-		if !ok {
-			addROA = append(addROA, v)
+	for _, roa := range new {
+		if !slices.Contains(old, roa) {
+			addROA = append(addROA, roa)
 		}
 	}
 
 	// If ROA is in oldMap but not newMap, we need to delete it.
-	for k, v := range oldm {
-		_, ok := newm[k]
-		if !ok {
-			delROA = append(delROA, v)
+	for _, roa := range old {
+		if !slices.Contains(new, roa) {
+			delROA = append(delROA, roa)
 		}
 	}
 
@@ -59,15 +54,6 @@ func makeDiff(new, old []roa, serial uint32) serialDiff {
 		delRoa:    delROA,
 		diff:      diff,
 	}
-}
-
-// roasToMap will convert a slice of ROAs into a map of formatted ROA to a ROA.
-func roasToMap(roas []roa) map[string]roa {
-	rm := make(map[string]roa, len(roas))
-	for _, roa := range roas {
-		rm[fmt.Sprintf("%s%d%d", roa.Prefix.Addr().String(), roa.MaxMask, roa.ASN)] = roa
-	}
-	return rm
 }
 
 func readROAs(urls []string) ([]roa, error) {
@@ -189,17 +175,6 @@ func (roa *roa) isValid() bool {
 	}
 
 	return true
-}
-
-// stringToInt does inline convertions and logs errors, instead of panicing.
-func stringToInt(s string) int {
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		log.Printf("Unable to convert %s to int", s)
-		return 0
-	}
-
-	return n
 }
 
 // Some json VRPs contain ASXXX instead of just XXX as the ASN

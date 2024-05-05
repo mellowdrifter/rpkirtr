@@ -9,31 +9,6 @@ import (
 	"time"
 )
 
-func TestStringToInt(t *testing.T) {
-	tests := []struct {
-		desc   string
-		number string
-		want   int
-	}{
-		{
-			desc:   "test 1",
-			number: "1",
-			want:   1,
-		},
-		{
-			desc:   "test word",
-			number: "word",
-			want:   0,
-		},
-	}
-	for _, v := range tests {
-		got := stringToInt(v.number)
-		if got != v.want {
-			t.Errorf("Error on %s. Got %d, Want %d\n", v.desc, got, v.want)
-		}
-	}
-}
-
 func TestAsnToInt(t *testing.T) {
 	tests := []struct {
 		desc    string
@@ -79,7 +54,8 @@ func TestMakeDiff(t *testing.T) {
 				addRoa:    nil,
 				diff:      false,
 			},
-		}, {
+		},
+		{
 			desc: "one ROA, no diff",
 			new: []roa{
 				{
@@ -103,7 +79,8 @@ func TestMakeDiff(t *testing.T) {
 				addRoa:    nil,
 				diff:      false,
 			},
-		}, {
+		},
+		{
 			desc: "Min mask change",
 			new: []roa{
 				{
@@ -139,7 +116,8 @@ func TestMakeDiff(t *testing.T) {
 				},
 				diff: true,
 			},
-		}, {
+		},
+		{
 			desc: "Max mask change",
 			new: []roa{
 				{
@@ -175,7 +153,8 @@ func TestMakeDiff(t *testing.T) {
 				},
 				diff: true,
 			},
-		}, {
+		},
+		{
 			desc: "ASN change",
 			new: []roa{
 				{
@@ -211,7 +190,8 @@ func TestMakeDiff(t *testing.T) {
 				},
 				diff: true,
 			},
-		}, {
+		},
+		{
 			desc: "Two ROAs to one",
 			new: []roa{
 				{
@@ -456,5 +436,245 @@ func TestReadROAs(t *testing.T) {
 				t.Errorf("Got (%v), Wanted (%v) on string", got, tc.wantString)
 			}
 		})
+	}
+}
+
+func BenchmarkMakeDiff(b *testing.B) {
+	// run the Fib function b.N times
+	for n := 0; n < b.N; n++ {
+		tests := []struct {
+			desc   string
+			new    []roa
+			old    []roa
+			serial uint32
+			want   serialDiff
+		}{
+			{
+				desc:   "empty, no diff",
+				new:    []roa{},
+				old:    []roa{},
+				serial: 0,
+				want: serialDiff{
+					oldSerial: 0,
+					newSerial: 1,
+					delRoa:    nil,
+					addRoa:    nil,
+					diff:      false,
+				},
+			},
+			{
+				desc: "one ROA, no diff",
+				new: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				old: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				serial: 1,
+				want: serialDiff{
+					oldSerial: 1,
+					newSerial: 2,
+					delRoa:    nil,
+					addRoa:    nil,
+					diff:      false,
+				},
+			},
+			{
+				desc: "Min mask change",
+				new: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/23"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				old: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				serial: 1,
+				want: serialDiff{
+					oldSerial: 1,
+					newSerial: 2,
+					delRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+							MaxMask: 32,
+							ASN:     123,
+						},
+					},
+					addRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("192.168.1.1/23"),
+							MaxMask: 32,
+							ASN:     123,
+						},
+					},
+					diff: true,
+				},
+			},
+			{
+				desc: "Max mask change",
+				new: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 31,
+						ASN:     123,
+					},
+				},
+				old: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				serial: 1,
+				want: serialDiff{
+					oldSerial: 1,
+					newSerial: 2,
+					delRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+							MaxMask: 32,
+							ASN:     123,
+						},
+					},
+					addRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+							MaxMask: 31,
+							ASN:     123,
+						},
+					},
+					diff: true,
+				},
+			},
+			{
+				desc: "ASN change",
+				new: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				old: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     1234,
+					},
+				},
+				serial: 1,
+				want: serialDiff{
+					oldSerial: 1,
+					newSerial: 2,
+					delRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+							MaxMask: 32,
+							ASN:     1234,
+						},
+					},
+					addRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+							MaxMask: 32,
+							ASN:     123,
+						},
+					},
+					diff: true,
+				},
+			},
+			{
+				desc: "Two ROAs to one",
+				new: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				old: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+					{
+						Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+						MaxMask: 48,
+						ASN:     123,
+					},
+				},
+				serial: 1,
+				want: serialDiff{
+					oldSerial: 1,
+					newSerial: 2,
+					delRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+							MaxMask: 48,
+							ASN:     123,
+						},
+					},
+					addRoa: nil,
+					diff:   true,
+				},
+			}, {
+				desc: "One ROA to two",
+				new: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+					{
+						Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+						MaxMask: 48,
+						ASN:     123,
+					},
+				},
+				old: []roa{
+					{
+						Prefix:  netip.MustParsePrefix("192.168.1.1/24"),
+						MaxMask: 32,
+						ASN:     123,
+					},
+				},
+				serial: 1,
+				want: serialDiff{
+					oldSerial: 1,
+					newSerial: 2,
+					delRoa:    nil,
+					addRoa: []roa{
+						{
+							Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+							MaxMask: 48,
+							ASN:     123,
+						},
+					},
+					diff: true,
+				},
+			},
+		}
+		for _, v := range tests {
+			got := makeDiff(v.new, v.old, v.serial)
+			if !diffIsEqual(got, v.want) {
+				b.Errorf("Error on %s. got %#v, Want %#v\n", v.desc, got, v.want)
+			}
+		}
 	}
 }
