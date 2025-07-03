@@ -9,12 +9,13 @@ import (
 
 // Each client has their own stuff
 type client struct {
-	conn   net.Conn
-	addr   string
-	roas   *[]roa
-	serial *uint32
-	mutex  *sync.RWMutex
-	diff   *serialDiff
+	conn    net.Conn
+	addr    string
+	roas    *[]roa
+	serial  *uint32
+	mutex   *sync.RWMutex
+	diff    *serialDiff
+	version uint8
 }
 
 // reset has no data besides the header
@@ -133,6 +134,59 @@ func (s *CacheServer) handleClient(c *client) {
 	defer s.remove(c)
 	defer c.conn.Close()
 
+	// Initial connection negotiation
+	// What is the incoming PDU?
+	pdu, err := getPDU(c.conn)
+	if err != nil {
+		log.Printf("error received when getting the pdu: %v", err)
+		return
+	}
+	// TODO: Is 2 a magic number?
+	header, err := decodePDUHeader(pdu[:2], c.version, true)
+	if err != nil {
+		log.Printf("error received when decoding the header: %v", err)
+		return
+	}
+	// Set the version of the client
+	c.version = header.Version
+
+	switch {
+	case header.Ptype == resetQuery:
+		log.Printf("received a reset Query PDU from %s\n", c.addr)
+		c.sendRoa()
+
+	case header.Ptype == serialQuery:
+		log.Printf("received a serial Query PDU from %s\n", c.addr)
+		// TODO: Is 2 a magic number?
+		sq := getSerialQueryPDU(pdu[2:])
+		c.mutex.RLock()
+		serial := c.diff.newSerial
+		c.mutex.RUnlock()
+		// If the client sends in the current or previous serial, then we can handle it.
+		// If the serial is older or unknown, we need to send a reset.
+		if sq.Serial != serial && sq.Serial != serial-1 {
+			log.Printf("received a serial query PDU, with an unmanagable serial from %s\n", c.addr)
+			log.Printf("Serial received: %d. Current server serial: %d\n", sq.Serial, serial)
+			c.sendReset()
+		}
+		if sq.Serial == serial {
+			log.Printf("received a serial number which currently matches my own from %s\n", c.addr)
+			log.Printf("Serial received: %d. Current server serial: %d\n", sq.Serial, serial)
+			c.updateClient(sq.Session, serial, false)
+		}
+		if sq.Serial == serial-1 {
+			log.Printf("received a serial number one less, so sending diff to %s\n", c.addr)
+			log.Printf("Serial received: %d. Current server serial: %d\n", sq.Serial, serial)
+			c.updateClient(sq.Session, serial, true)
+		}
+	}
+	if header.Ptype != resetQuery && header.Ptype != serialQuery {
+		log.Printf("On startup, only resetQuery and serialQuery are allowed. Received %d\n", header.Ptype)
+		return
+	}
+
+	// Once initial negotiation is done, we can start handling the client.
+	// TODO: This is very ugly where the same code is duplicated
 	for {
 		// What is the incoming PDU?
 		pdu, err := getPDU(c.conn)
@@ -140,7 +194,7 @@ func (s *CacheServer) handleClient(c *client) {
 			log.Printf("error received when getting the pdu: %v", err)
 			return
 		}
-		header, err := decodePDUHeader(pdu[:2])
+		header, err := decodePDUHeader(pdu[:2], c.version, false)
 		if err != nil {
 			log.Printf("error received when decoding the header: %v", err)
 			return

@@ -1,6 +1,5 @@
-// This app implements RFC8210.
-// The Resource Public Key Infrastructure (RPKI) to Router Protocol.
-// Version 1
+// This app implements RPKI RTR Version 2
+// It supports both version 1 and version 2 of the protocol.
 
 package main
 
@@ -143,7 +142,6 @@ func run() error {
 }
 
 // Start listening
-// TODO(only on IPv4?)
 func (s *CacheServer) listen(port int64) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -245,6 +243,7 @@ func (s *CacheServer) accept(conn net.Conn) *client {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	// TODO: Handle the error
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 
 	// Each client will have a pointer to a load of the server's data.
