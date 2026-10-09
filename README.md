@@ -1,6 +1,10 @@
-# rpkirtr
+# ⚠️ ARCHIVED REPOSITORY
 
-Implements an RPKI-RTR server in Go. Supports most of RFC8210. Does not support version 0, only version 1.
+> [!WARNING]
+> This repository is **archived and no longer maintained**.
+> It has been superseded by [**`rpkirtr2`**](https://github.com/mellowdrifter/rpkirtr2), which provides RPKI-RTR v2, ASPA support, gRPC telemetry, and active production deployment.
+
+# rpkirtr (v1)
 
 Complile and run. Accepts connections over IPv4 and IPv6.
 
